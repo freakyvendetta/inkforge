@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>InkForge — Text to Realistic Handwriting Studio</title>
+  <meta name="description" content="Transform typed notes, assignments, and essays into authentic handwritten pages with natural pen physics, customizable handwriting fonts, paper textures, and instant PDF export." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600;700&family=Homemade+Apple&family=Indie+Flower&family=Kalam:wght@300;400;700&family=Outfit:wght@300;400;500;600;700&family=Patrick+Hand&family=Shadows+Into+Light&display=swap" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- Background orbs -->
+  <div class="bg-orb orb-1"></div>
+  <div class="bg-orb orb-2"></div>
+  <div class="bg-orb orb-3"></div>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-inner">
+      <div class="logo">
+        <span class="logo-icon">✍️</span>
+        <span class="logo-text">InkForge</span>
+        <span class="logo-tag">Studio</span>
+      </div>
+      <nav class="nav-links">
+        <a href="#how-to-use">How to Use</a>
+        <a href="#editor">Studio Editor</a>
+        <a href="https://github.com/freakyvendetta" target="_blank" rel="noopener">GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="hero-badge"><span class="badge-dot"></span>Realistic Handwriting Synthesizer</div>
+    <h1 class="hero-title">Turn Typed Text Into<br /><span class="gradient-text">Authentic Handwritten Pages</span></h1>
+    <p class="hero-subtitle">
+      Convert your assignments, notes, or essays into realistic handwriting with natural baseline drift,
+      organic pen pressure, multiple handwriting styles, and multi-page PDF export.
+    </p>
+    <a href="#editor" class="cta-btn" id="hero-cta">Open Studio <span class="cta-arrow">→</span></a>
+  </section>
+
+  <!-- How-to section -->
+  <section class="how-section" id="how-to-use">
+    <h2 class="section-title">How It Works</h2>
+    <div class="steps-grid">
+      <div class="step-card">
+        <div class="step-num">01</div>
+        <h3>Type &amp; Format</h3>
+        <p>Compose in the rich editor with headings, bold/italic accents, lists, and alignments, or import directly from an existing PDF file.</p>
+      </div>
+      <div class="step-card">
+        <div class="step-num">02</div>
+        <h3>Select Pen &amp; Paper</h3>
+        <p>Pick from natural handwriting styles or custom PNG glyphs. Choose pen type (Gel, Ballpoint, Fountain, Pencil) and paper textures.</p>
+      </div>
+      <div class="step-card">
+        <div class="step-num">03</div>
+        <h3>Generate &amp; Export</h3>
+        <p>Preview in real time, then render high-resolution 300 DPI pages with realistic line jitter, and export directly as individual PNGs or a multi-page PDF.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════ EDITOR SECTION ═══════════════════ -->
+  <section class="editor-section" id="editor">
+
+    <!-- Formatting Toolbar -->
+    <div class="formatting-toolbar" id="formatting-toolbar">
+      <div class="tb-group">
+        <button class="tb-btn" data-cmd="bold" title="Bold (Ctrl+B)"><b>B</b></button>
+        <button class="tb-btn" data-cmd="italic" title="Italic (Ctrl+I)"><i>I</i></button>
+        <button class="tb-btn" data-cmd="underline" title="Underline (Ctrl+U)"><u>U</u></button>
+      </div>
+      <div class="tb-sep"></div>
+      <div class="tb-group">
+        <button class="tb-btn tb-h" data-cmd="h1" title="Heading 1">H1</button>
+        <button class="tb-btn tb-h" data-cmd="h2" title="Heading 2">H2</button>
+        <button class="tb-btn tb-h" data-cmd="h3" title="Heading 3">H3</button>
+      </div>
+      <div class="tb-sep"></div>
+      <div class="tb-group">
+        <button class="tb-btn" data-cmd="insertUnorderedList" title="Bullet List">• List</button>
+        <button class="tb-btn" data-cmd="insertOrderedList" title="Numbered List">1. List</button>
+      </div>
+      <div class="tb-sep"></div>
+      <div class="tb-group">
+        <button class="tb-btn" data-cmd="justifyLeft" title="Align Left">
+          <span class="tb-align align-l"><i></i><i></i><i></i></span>
+        </button>
+        <button class="tb-btn" data-cmd="justifyCenter" title="Center">
+          <span class="tb-align align-c"><i></i><i></i><i></i></span>
+        </button>
+        <button class="tb-btn" data-cmd="justifyRight" title="Align Right">
+          <span class="tb-align align-r"><i></i><i></i><i></i></span>
+        </button>
+      </div>
+      <div class="tb-sep"></div>
+      <div class="tb-group">
+        <input type="file" id="pdf-upload-input" accept="application/pdf" style="display:none" aria-label="Upload PDF" />
+        <button class="tb-btn" id="pdf-upload-btn" title="Upload PDF to extract text">📄 Import PDF</button>
+      </div>
+    </div>
+
+    <!-- Customization Panel placeholder -->
+</body>
+</html>
