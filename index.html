@@ -108,6 +108,185 @@
       </div>
     </div>
 
-    <!-- Customization Panel placeholder -->
+    <!-- Customization Panel (Persistent, Reacts Live) -->
+    <div class="customization-panel" id="customization-panel">
+      <!-- Handwriting Style -->
+      <div class="cp-group">
+        <label for="handwriting-font">Font Style</label>
+        <select id="handwriting-font" class="cp-select">
+          <option value="Caveat" selected>Caveat (Casual Cursive)</option>
+          <option value="Kalam">Kalam (Neat Ballpoint)</option>
+          <option value="Indie Flower">Indie Flower (Notebook)</option>
+          <option value="Shadows Into Light">Shadows Into Light (Organic)</option>
+          <option value="Homemade Apple">Homemade Apple (Realist Flow)</option>
+          <option value="Patrick Hand">Patrick Hand (Clean Print)</option>
+          <option value="custom-png">Custom PNGs (myfont/)</option>
+        </select>
+        <div id="custom-glyph-area" style="display:none; align-items: center; gap: 6px;">
+          <input type="file" id="glyph-upload-input" accept="image/png" multiple style="display:none" />
+          <button class="cp-btn" id="glyph-upload-btn">📁 Upload PNGs</button>
+          <button class="cp-btn cp-btn-danger" id="glyph-clear-btn" style="display:none">✕</button>
+          <span class="cp-status" id="glyph-upload-status"></span>
+        </div>
+      </div>
+
+      <!-- Pen Type -->
+      <div class="cp-group">
+        <label for="pen-style">Pen Style</label>
+        <select id="pen-style" class="cp-select">
+          <option value="gel" selected>Gel Pen (Smooth)</option>
+          <option value="ballpoint">Ballpoint (Realistic)</option>
+          <option value="fountain">Fountain Pen (Shading)</option>
+          <option value="pencil">Pencil (Graphite)</option>
+        </select>
+      </div>
+
+      <!-- Paper Style -->
+      <div class="cp-group">
+        <label for="paper-style">Paper Style</label>
+        <select id="paper-style" class="cp-select">
+          <option value="ruled" selected>Ruled Notebook</option>
+          <option value="grid">Grid / Math Paper</option>
+          <option value="vintage">Vintage Parchment</option>
+          <option value="blank-white">Blank (White)</option>
+          <option value="blank-cream">Warm Cream</option>
+          <option value="dark">Chalkboard / Dark</option>
+        </select>
+      </div>
+
+      <!-- Ink Color -->
+      <div class="cp-group">
+        <label>Ink Color</label>
+        <div class="color-row">
+          <input type="color" id="ink-color" value="#1a237e" title="Pick custom ink color" />
+          <div class="color-presets">
+            <button class="color-preset active" data-color="#1a237e" style="background:#1a237e" title="Navy Blue" aria-label="Navy Blue ink"></button>
+            <button class="color-preset" data-color="#0d47a1" style="background:#0d47a1" title="Royal Blue" aria-label="Royal Blue ink"></button>
+            <button class="color-preset" data-color="#1b5e20" style="background:#1b5e20" title="Dark Green" aria-label="Dark Green ink"></button>
+            <button class="color-preset" data-color="#b71c1c" style="background:#b71c1c" title="Crimson Red" aria-label="Crimson Red ink"></button>
+            <button class="color-preset" data-color="#212121" style="background:#212121" title="Charcoal Black" aria-label="Charcoal ink"></button>
+            <button class="color-preset" data-color="#4a148c" style="background:#4a148c" title="Purple" aria-label="Purple ink"></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Page Size -->
+      <div class="cp-group">
+        <label for="page-size-select">Page Size</label>
+        <select id="page-size-select" class="cp-select">
+          <option value="ruled" selected>Standard Ruled</option>
+          <option value="a4">A4 Sheet</option>
+          <option value="letter">US Letter</option>
+          <option value="custom">Custom</option>
+        </select>
+        <div id="custom-size-row" style="display:none; align-items: center; gap: 4px;">
+          <input type="number" id="custom-page-w" class="cp-num" value="2480" min="800" max="8000" style="width: 55px;" />
+          <span>×</span>
+          <input type="number" id="custom-page-h" class="cp-num" value="3508" min="800" max="10000" style="width: 55px;" />
+        </div>
+      </div>
+
+      <!-- Font Size -->
+      <div class="cp-group">
+        <label for="font-size-input">Font Size</label>
+        <div class="cp-input-wrap">
+          <input type="number" id="font-size-input" class="cp-num" value="16" min="10" max="48" step="1" style="width: 50px;" />
+          <span class="cp-unit">pt</span>
+        </div>
+      </div>
+
+      <!-- Line Gap -->
+      <div class="cp-group">
+        <label for="line-gap-input">Line Gap</label>
+        <div class="cp-input-wrap">
+          <input type="number" id="line-gap-input" class="cp-num" value="110" min="50" max="350" step="5" style="width: 55px;" />
+          <span class="cp-unit">px</span>
+        </div>
+      </div>
+
+      <!-- Realism Controls -->
+      <div class="cp-group cp-toggle-group">
+        <label for="jitter-toggle">Jitter</label>
+        <label class="toggle" title="Micro-variations in character position & rotation">
+          <input type="checkbox" id="jitter-toggle" checked />
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
+      <div class="cp-group cp-toggle-group">
+        <label for="drift-toggle">Drift</label>
+        <label class="toggle" title="Natural human baseline undulation across each line">
+          <input type="checkbox" id="drift-toggle" checked />
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
+      <div class="cp-group cp-actions">
+        <button class="cp-btn cp-reset" id="reset-btn" title="Reset defaults">↺ Reset</button>
+        <button class="cp-btn" id="missing-chars-toggle">🔍 Coverage</button>
+      </div>
+    </div>
+
+    <!-- Coverage Panel -->
+    <div class="missing-chars-panel" id="missing-chars-panel">
+      <div id="missing-chars-body"></div>
+    </div>
+
+    <!-- Editor + Preview columns -->
+    <div class="editor-layout">
+
+      <!-- Left: Rich text editor -->
+      <div class="editor-col">
+        <div class="editor-surface" id="editor-surface" contenteditable="true" spellcheck="true">
+          <h1>Assignment 1: Distributed Systems Architecture</h1>
+          <p>Distributed computing models rely heavily on <b>reliable network consensus</b> and fault tolerance. When designing peer-to-peer or cluster networks, nodes must agree on global state without a central authority.</p>
+          <h2>Key Principles of Consensus</h2>
+          <ul>
+            <li><b>Safety:</b> Nothing bad happens &mdash; all non-faulty nodes decide on the same value.</li>
+            <li><b>Liveness:</b> Something good eventually happens &mdash; all nodes eventually make a decision.</li>
+            <li><b>Fault Tolerance:</b> System maintains integrity despite arbitrary crash failures.</li>
+          </ul>
+          <h3>Summary &amp; Observations</h3>
+          <p>By tuning the <i>Paxos</i> or <i>Raft</i> leader election heartbeats, network partitions can be resolved within 150ms. Please refer to Section 4.2 for complete benchmarks.</p>
+        </div>
+        <div class="editor-footer"><span id="char-count">0 chars</span></div>
+      </div>
+
+      <!-- Right: Live preview + actions -->
+      <div class="preview-col">
+        <div class="preview-header">
+          <span class="preview-title">Real-Time Notebook Preview</span>
+          <div class="preview-nav">
+            <button class="nav-btn" id="prev-page-btn" disabled title="Previous Page">◀</button>
+            <span class="page-indicator" id="page-indicator">Page 1 of 1</span>
+            <button class="nav-btn" id="next-page-btn" disabled title="Next Page">▶</button>
+          </div>
+        </div>
+        <div class="preview-viewport" id="preview-viewport">
+          <div class="preview-page" id="preview-page">
+            <!-- Web-font preview or generated canvas shown here -->
+          </div>
+        </div>
+        <div class="action-bar" id="action-bar">
+          <button class="act-btn act-generate" id="generate-btn"><span class="btn-icon">✨</span> Render High-Res</button>
+          <button class="act-btn act-dl" id="dl-png-btn" disabled title="Download currently viewed page as PNG">⬇ Page PNG</button>
+          <button class="act-btn act-dl" id="dl-all-btn" disabled title="Download all pages as PNG images">⬇ All PNGs</button>
+          <button class="act-btn act-pdf" id="dl-pdf-btn" disabled title="Export as clean multi-page PDF">📄 Export PDF</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Status bar -->
+    <div class="status-bar" id="status-bar" aria-live="polite">
+      <span class="status-idle">Ready &mdash; edit text or customize appearance live</span>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <p>InkForge &mdash; Authentic Text to Handwriting Studio. Crafted with vanilla JavaScript &amp; HTML5 Canvas.</p>
+  </footer>
+
+  <script src="app.js"></script>
 </body>
 </html>
