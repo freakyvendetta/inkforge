@@ -1,3 +1,3 @@
-# InkForge
+# InkForge Studio
 
-A modern browser-based text-to-handwriting synthesis engine.
+High-performance 300 DPI text-to-handwriting synthesizer.
