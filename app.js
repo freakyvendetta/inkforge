@@ -74,7 +74,7 @@ const DEFAULT_LAYOUT = Object.freeze({
 
 const DEFAULT_APPEARANCE = Object.freeze({
   fontFamily:   'Caveat',   // 'Caveat' | 'Kalam' | 'Indie Flower' | 'Shadows Into Light' | 'Homemade Apple' | 'Patrick Hand' | 'custom-png'
-  penStyle:     'ballpoint',      // 'gel' | 'ballpoint' | 'fountain' | 'pencil'
+  penStyle:     'gel',      // 'gel' | 'ballpoint' | 'fountain' | 'pencil'
   inkColor:     '#1a237e',
   fontSize:     16,         // pt (Word standard)
   paperStyle:   'ruled',    // 'ruled' | 'grid' | 'vintage' | 'blank-white' | 'blank-cream' | 'dark'
