@@ -79,7 +79,7 @@ const DEFAULT_APPEARANCE = Object.freeze({
   fontSize:     16,         // pt (Word standard)
   paperStyle:   'ruled',    // 'ruled' | 'grid' | 'vintage' | 'blank-white' | 'blank-cream' | 'dark'
   useJitter:    true,
-  useDrift:     false,
+  useDrift:     true,
 });
 
 const PAGE_SIZE_PRESETS = {
