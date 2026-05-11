@@ -8,6 +8,10 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600;700&family=Homemade+Apple&family=Indie+Flower&family=Kalam:wght@300;400;700&family=Outfit:wght@300;400;500;600;700&family=Patrick+Hand&family=Shadows+Into+Light&display=swap" rel="stylesheet" />
+  <!-- KaTeX for authentic math formula rendering -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+  <!-- PDF.js and jsPDF -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <link rel="stylesheet" href="style.css" />
@@ -30,18 +34,17 @@
       <nav class="nav-links">
         <a href="#how-to-use">How to Use</a>
         <a href="#editor">Studio Editor</a>
-        <a href="https://github.com/freakyvendetta" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://github.com/freakyvendetta/inkforge" target="_blank" rel="noopener">GitHub</a>
       </nav>
     </div>
   </header>
 
   <!-- Hero -->
   <section class="hero">
-    <div class="hero-badge"><span class="badge-dot"></span>Realistic Handwriting Synthesizer</div>
     <h1 class="hero-title">Turn Typed Text Into<br /><span class="gradient-text">Authentic Handwritten Pages</span></h1>
     <p class="hero-subtitle">
       Convert your assignments, notes, or essays into realistic handwriting with natural baseline drift,
-      organic pen pressure, multiple handwriting styles, and multi-page PDF export.
+      organic pen pressure, diagrams, math formulas, and multi-page PDF export.
     </p>
     <a href="#editor" class="cta-btn" id="hero-cta">Open Studio <span class="cta-arrow">→</span></a>
   </section>
@@ -53,17 +56,17 @@
       <div class="step-card">
         <div class="step-num">01</div>
         <h3>Type &amp; Format</h3>
-        <p>Compose in the rich editor with headings, bold/italic accents, lists, and alignments, or import directly from an existing PDF file.</p>
+        <p>Compose in the rich editor with headings, bold/italic, lists, scratch-outs, diagrams, and LaTeX math formulas.</p>
       </div>
       <div class="step-card">
         <div class="step-num">02</div>
         <h3>Select Pen &amp; Paper</h3>
-        <p>Pick from natural handwriting styles or custom PNG glyphs. Choose pen type (Gel, Ballpoint, Fountain, Pencil) and paper textures.</p>
+        <p>Pick from natural handwriting styles or draw custom glyphs in Glyph Studio. Choose pen physics (Gel, Ballpoint, Fountain, Pencil) and paper textures.</p>
       </div>
       <div class="step-card">
         <div class="step-num">03</div>
         <h3>Generate &amp; Export</h3>
-        <p>Preview in real time, then render high-resolution 300 DPI pages with realistic line jitter, and export directly as individual PNGs or a multi-page PDF.</p>
+        <p>Preview in real time with page thumbnails, synthesize 300 DPI pages with organic baseline drift, and export directly as PNGs or a multi-page PDF.</p>
       </div>
     </div>
   </section>
@@ -77,6 +80,7 @@
         <button class="tb-btn" data-cmd="bold" title="Bold (Ctrl+B)"><b>B</b></button>
         <button class="tb-btn" data-cmd="italic" title="Italic (Ctrl+I)"><i>I</i></button>
         <button class="tb-btn" data-cmd="underline" title="Underline (Ctrl+U)"><u>U</u></button>
+        <button class="tb-btn" data-cmd="strikeThrough" title="Scratch Out / Strikethrough"><s>S</s></button>
       </div>
       <div class="tb-sep"></div>
       <div class="tb-group">
@@ -100,6 +104,12 @@
         <button class="tb-btn" data-cmd="justifyRight" title="Align Right">
           <span class="tb-align align-r"><i></i><i></i><i></i></span>
         </button>
+      </div>
+      <div class="tb-sep"></div>
+      <div class="tb-group">
+        <button class="tb-btn" id="insert-diagram-btn" title="Insert Diagram or Sketch Image">📊 Diagram</button>
+        <button class="tb-btn" id="insert-math-btn" title="Insert Mathematical Formula (KaTeX)">∑ Math</button>
+        <input type="file" id="diagram-upload-input" accept="image/*" style="display:none" aria-label="Upload Diagram Image" />
       </div>
       <div class="tb-sep"></div>
       <div class="tb-group">
@@ -221,7 +231,16 @@
         </label>
       </div>
 
+      <div class="cp-group cp-toggle-group">
+        <label for="creep-toggle">Creep</label>
+        <label class="toggle" title="Subtle margin wander simulating natural fatigue down the page">
+          <input type="checkbox" id="creep-toggle" checked />
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
       <div class="cp-group cp-actions">
+        <button class="cp-btn" id="open-glyph-studio-btn" title="Draw or customize missing characters on an interactive canvas">🖌️ Glyph Studio</button>
         <button class="cp-btn cp-reset" id="reset-btn" title="Reset defaults">↺ Reset</button>
         <button class="cp-btn" id="missing-chars-toggle">🔍 Coverage</button>
       </div>
@@ -246,6 +265,11 @@
             <li><b>Liveness:</b> Something good eventually happens &mdash; all nodes eventually make a decision.</li>
             <li><b>Fault Tolerance:</b> System maintains integrity despite arbitrary crash failures.</li>
           </ul>
+          <h3>Mathematical Performance Model</h3>
+          <p>The theoretical message complexity for Byzantine Fault Tolerance is modeled as:</p>
+          <div class="editor-math-block" data-latex="C(n) = \sum_{i=1}^{n-1} 3i^2 + \mathcal{O}(n \log n)">
+            $$C(n) = \sum_{i=1}^{n-1} 3i^2 + \mathcal{O}(n \log n)$$
+          </div>
           <h3>Summary &amp; Observations</h3>
           <p>By tuning the <i>Paxos</i> or <i>Raft</i> leader election heartbeats, network partitions can be resolved within 150ms. Please refer to Section 4.2 for complete benchmarks.</p>
         </div>
@@ -255,13 +279,19 @@
       <!-- Right: Live preview + actions -->
       <div class="preview-col">
         <div class="preview-header">
-          <span class="preview-title">Real-Time Notebook Preview</span>
+          <span class="preview-title" id="preview-title-btn" style="cursor:pointer;" title="Click to refresh live notebook preview">Real-Time Notebook Preview <span style="font-size:0.85em; opacity:0.8;" title="Refresh">↺</span></span>
           <div class="preview-nav">
             <button class="nav-btn" id="prev-page-btn" disabled title="Previous Page">◀</button>
             <span class="page-indicator" id="page-indicator">Page 1 of 1</span>
             <button class="nav-btn" id="next-page-btn" disabled title="Next Page">▶</button>
           </div>
         </div>
+
+        <!-- Multi-page thumbnails bar -->
+        <div class="preview-thumbnails-bar" id="preview-thumbnails-bar">
+          <!-- Populated dynamically with mini previews of all pages -->
+        </div>
+
         <div class="preview-viewport" id="preview-viewport">
           <div class="preview-page" id="preview-page">
             <!-- Web-font preview or generated canvas shown here -->
@@ -282,11 +312,117 @@
     </div>
   </section>
 
+  <!-- ═══════════════ MODALS ═══════════════ -->
+
+  <!-- Glyph Studio Modal -->
+  <div class="modal-backdrop" id="glyph-studio-modal" style="display:none;">
+    <div class="modal-box glyph-modal-box">
+      <div class="modal-header">
+        <div class="modal-title">
+          <span class="modal-icon">🖌️</span>
+          <div>
+            <h3>Glyph Studio &mdash; Character Synthesizer</h3>
+            <p>Draw custom handwriting glyphs or touch up characters with your stylus</p>
+          </div>
+        </div>
+        <button class="modal-close-btn" id="close-glyph-studio-btn">&times;</button>
+      </div>
+      <div class="modal-body glyph-studio-layout">
+        <!-- Sidebar: selection -->
+        <div class="glyph-sidebar">
+          <div class="field-group">
+            <label for="glyph-char-picker">Select Character to Draw:</label>
+            <select id="glyph-char-picker" class="cp-select" style="width: 100%;">
+              <!-- Populated dynamically -->
+            </select>
+          </div>
+          <div class="glyph-status-info" id="glyph-status-info">
+            <span class="glyph-badge badge-missing" id="current-char-status">Missing</span>
+            <span class="glyph-filename" id="current-char-filename">excl.png</span>
+          </div>
+          <div class="glyph-preview-row">
+            <label>Current Saved Glyph:</label>
+            <div class="glyph-current-preview" id="glyph-current-preview">
+              <span>None</span>
+            </div>
+          </div>
+          <div class="glyph-actions-stack">
+            <button class="act-btn act-generate" id="save-drawn-glyph-btn">💾 Save Character</button>
+            <button class="act-btn act-dl" id="export-glyph-pack-btn">📦 Export All Glyphs</button>
+          </div>
+        </div>
+
+        <!-- Canvas drawing surface -->
+        <div class="glyph-drawing-col">
+          <div class="drawing-toolbar">
+            <button class="draw-tool-btn active" id="tool-pen-btn" title="Pen Tool">✏️ Pen</button>
+            <button class="draw-tool-btn" id="tool-eraser-btn" title="Eraser Tool">🧹 Eraser</button>
+            <div class="tb-sep"></div>
+            <label>Thickness:</label>
+            <input type="range" id="pen-size-slider" min="2" max="14" value="5" />
+            <span id="pen-size-val">5px</span>
+            <div class="tb-sep"></div>
+            <button class="draw-tool-btn" id="draw-undo-btn" title="Undo Stroke">↩ Undo</button>
+            <button class="draw-tool-btn" id="draw-clear-btn" title="Clear Canvas">🗑️ Clear</button>
+          </div>
+          <div class="canvas-drawing-container">
+            <canvas id="glyph-draw-canvas" width="320" height="320"></canvas>
+            <div class="canvas-guide-line guide-ascender"><span>Ascender</span></div>
+            <div class="canvas-guide-line guide-midline"><span>Midline</span></div>
+            <div class="canvas-guide-line guide-baseline"><span>Baseline</span></div>
+            <div class="canvas-guide-line guide-descender"><span>Descender</span></div>
+          </div>
+          <div class="canvas-hint">Draw inside the guideline box. The baseline marks where characters sit on the notebook line.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Math Formula Modal -->
+  <div class="modal-backdrop" id="math-formula-modal" style="display:none;">
+    <div class="modal-box math-modal-box">
+      <div class="modal-header">
+        <div class="modal-title">
+          <span class="modal-icon">∑</span>
+          <div>
+            <h3>Insert Mathematical Formula (KaTeX)</h3>
+            <p>Write standard LaTeX notation &mdash; rendered into handwritten notes</p>
+          </div>
+        </div>
+        <button class="modal-close-btn" id="close-math-modal-btn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="math-shortcuts">
+          <button class="math-quick-btn" data-tex="E = mc^2">E = mc²</button>
+          <button class="math-quick-btn" data-tex="\int_{a}^{b} f(x) dx">Integral</button>
+          <button class="math-quick-btn" data-tex="\frac{a}{b}">Fraction</button>
+          <button class="math-quick-btn" data-tex="\sqrt{x^2 + y^2}">Square Root</button>
+          <button class="math-quick-btn" data-tex="\sum_{i=1}^n i">Summation</button>
+          <button class="math-quick-btn" data-tex="\alpha + \beta = \theta">Greek</button>
+          <button class="math-quick-btn" data-tex="\lim_{x \to \infty} f(x)">Limit</button>
+        </div>
+        <div class="field-group" style="margin-top: 14px;">
+          <label for="math-latex-input">LaTeX Formula:</label>
+          <textarea id="math-latex-input" class="math-textarea" rows="3" placeholder="e.g. \int_{0}^{\infty} e^{-x^2} dx = \frac{\sqrt{\pi}}{2}"></textarea>
+        </div>
+        <div class="field-group">
+          <label>Live Preview:</label>
+          <div class="math-preview-box" id="math-live-preview"></div>
+        </div>
+        <div class="modal-footer-actions">
+          <button class="act-btn act-dl" id="cancel-math-btn">Cancel</button>
+          <button class="act-btn act-generate" id="insert-math-submit-btn">Insert Into Notes</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Footer -->
   <footer class="footer">
     <p>InkForge &mdash; Authentic Text to Handwriting Studio. Crafted with vanilla JavaScript &amp; HTML5 Canvas.</p>
   </footer>
 
+  <script src="font-data.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
