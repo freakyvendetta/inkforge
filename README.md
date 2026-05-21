@@ -27,13 +27,31 @@ Zero installation, zero server dependencies — runs completely in the browser.
   - **Vintage Parchment**: Warm sepia tones and organic vignetting.
   - **Blank (White & Cream)**: Clean stationery.
   - **Chalkboard / Dark**: Inverted dark mode paper.
+- 🖌️ **Interactive Glyph Studio**:
+  - Draw custom handwriting glyphs directly in your browser using mouse or stylus.
+  - Typography reference guidelines (ascender, midline, baseline, and descender).
+  - Smooth pressure-sensitive strokes, eraser tool, undo history, and canvas clearing.
+  - Automatic LocalStorage persistence and one-click JSON glyph pack export/import.
+- 📐 **LaTeX Mathematical Formula Synthesizer**:
+  - Insert complex calculus, linear algebra, Greek symbols, and equations via integrated KaTeX.
+  - Quick-insert syntax buttons for common academic and mathematical structures.
+  - Dynamic ink-color synchronization matching the active notebook pen.
+- 🖼️ **Sketches & Embedded Diagrams**:
+  - Embed lab diagrams, circuit drawings, and figures directly between notebook lines.
+  - Automatic vertical space calculation, line snapping, and editable handwritten figure captions.
+- 📑 **Multi-Page Visual Thumbnail Navigator**:
+  - Live mini-canvas previews of all pages in the document.
+  - Instant click-to-scroll navigation and active page indicators.
 - 🌊 **Organic Human Imperfections**:
   - **Baseline Drift**: Subtle, smooth wavy baseline undulation across lines.
   - **Micro-Jitter**: Natural positional and angular micro-rotations per character.
+  - **Margin Creep**: Simulates natural hand and arm fatigue wandering down the page.
+  - **Scratch-Out Scribbles**: Realistic multi-pass pen scribbles for strikethrough (`<s>`) text.
   - **Wavy Underlines**: Hand-drawn wavy strokes beneath underlined words.
 - ⚡ **Optimized Performance (300 DPI Print Standard)**:
   - Generates crisp `2480 x 3508 px` (A4 standard at 300 DPI) using 80% less memory than legacy implementations.
   - Cached paper backgrounds and debounced live preview eliminate keystroke lag.
+  - Zero-CORS offline execution with pre-bundled Base64 glyph data.
 - 📄 **Document Import & Export**:
   - Import raw text directly from PDF documents via `PDF.js`.
   - Download individual pages as PNGs or export all pages as a bundled multi-page PDF via `jsPDF`.
@@ -44,7 +62,7 @@ Zero installation, zero server dependencies — runs completely in the browser.
 
 ### 1. Run Locally
 
-Serve with any local static HTTP server (recommended to avoid browser CORS restrictions with local assets):
+Serve with any local static HTTP server:
 
 ```bash
 cd textToHandwritten-main
@@ -70,13 +88,15 @@ Because **InkForge** is 100% static client-side code:
 
 ## 🎨 Adding Your Custom Handwriting Font
 
-You can digitize your own personal handwriting using the `myfont/` directory:
+You can digitize your own personal handwriting using the `myfont/` directory or the built-in **Glyph Studio**:
 
-1. Write every character on white paper using a dark pen.
-2. Photograph and crop tightly around each character.
-3. Remove the background so each image is a transparent PNG.
-4. Scale images so the height is **160px** (maintaining aspect ratio).
-5. Name the images according to the convention below and place them into `myfont/`:
+1. **Option A (Glyph Studio - Easiest)**: Open **🖌️ Glyph Studio** in the control panel and draw characters directly on the guideline canvas using your stylus or mouse. They are saved automatically to your browser's LocalStorage!
+2. **Option B (Scan & Crop)**:
+   - Write every character on white paper using a dark pen.
+   - Photograph and crop tightly around each character.
+   - Remove the background so each image is a transparent PNG.
+   - Scale images so the height is **160px** (maintaining aspect ratio).
+   - Name the images according to the convention below and place them into `myfont/`:
 
 | Character | Filename |
 |---|---|
@@ -92,7 +112,8 @@ You can digitize your own personal handwriting using the `myfont/` directory:
 ## 🛠️ Tech Stack
 
 - **Vanilla HTML5, CSS3, & Modern JavaScript (ES6+)** — zero heavy frameworks, ultra-fast load times.
-- **HTML5 Canvas API** — client-side GPU compositing, transform matrices, and procedural procedural styling.
+- **HTML5 Canvas API** — client-side GPU compositing, transform matrices, and procedural paper styling.
+- **KaTeX** (CDN) — fast math rendering directly on the canvas.
 - **PDF.js** (CDN) — client-side PDF text extraction.
 - **jsPDF** (CDN) — client-side multi-page PDF document generation.
 
@@ -110,10 +131,12 @@ You can digitize your own personal handwriting using the `myfont/` directory:
   - Add Pen Styles (Gel, Ballpoint, Fountain, Pencil).
   - Add Paper Textures (Ruled Notebook, Math Grid, Vintage Parchment, Blackboard).
   - Implement natural Baseline Drift and rotational micro-jitter.
-- [ ] **Milestone 3: Advanced Academic Features**
-  - Mathematical formula rendering (KaTeX translated to hand-drawn strokes).
-  - Image and sketch diagram embedding into handwritten pages.
-  - Multi-page thumbnail navigator with drag-and-drop page reordering.
+- [x] **Milestone 3: Advanced Academic Studio & Features**
+  - Mathematical formula rendering (LaTeX/KaTeX embedded directly on ruled lines).
+  - Diagram, sketch, and figure embedding with handwritten captions.
+  - Multi-page thumbnail visual navigator with smooth scroll and active page jump.
+  - Organic handwriting flaws (natural margin creep and multi-pass pen scratch-outs).
+  - Interactive Glyph Studio with stylus drawing, guideline box, LocalStorage sync, and JSON pack export.
 - [ ] **Milestone 4: Automated Glyph Extractor**
   - Built-in photo scanner: upload a single sheet containing a character grid to auto-slice and generate custom PNG fonts automatically.
 
@@ -122,3 +145,4 @@ You can digitize your own personal handwriting using the `myfont/` directory:
 ## 📄 License
 
 This project is licensed under the [MIT License](LICENSE).
+
