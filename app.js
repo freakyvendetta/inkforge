@@ -2,10 +2,13 @@
  * InkForge Studio — app.js
  * Advanced rich-text to realistic handwriting rendering engine.
  *
- * Architecture:
- * DOM (contenteditable) ──> Document Model (Paragraphs & Runs)
- *                               ├──> Live Webfont Preview (Instant, Cached, Debounced)
- *                               └──> Canvas Synthesis Engine (High-Res 300 DPI, Pen Physics, Drift, Dual Glyphs)
+ * Core Features:
+ * - Dual Engine: Custom PNG glyphs (offline zero-CORS) + Curated Google Handwriting Fonts
+ * - Glyph Studio: In-browser character drawing & custom glyph persistence
+ * - Academic Support: KaTeX mathematical formulas & hand-drawn diagrams/images
+ * - Multi-pen physics: Gel, Ballpoint, Fountain, Pencil
+ * - Natural realism: Baseline drift, rotational micro-jitter, and margin creep
+ * - Document export: High-res 300 DPI single/all PNGs and multi-page PDF
  */
 
 // ─── 1. Symbol & Glyph Manifest ──────────────────────────────────────────────
@@ -26,27 +29,27 @@ const GLYPH_MANIFEST = [
   ...('abcdefghijklmnopqrstuvwxyz'.split('').map(c => ({ char: c, file: c, desc: `Lowercase ${c.toUpperCase()}` }))),
   ...('ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map(c => ({ char: c, file: 'c' + c.toLowerCase(), desc: `Uppercase ${c}` }))),
   ...('0123456789'.split('').map(c => ({ char: c, file: c, desc: `Digit ${c}` }))),
-  { char: ',',  file: 'coma',   desc: 'Comma' },
-  { char: '.',  file: 'fs',     desc: 'Period / Full stop' },
-  { char: '?',  file: 'que',    desc: 'Question mark' },
   { char: '!',  file: 'excl',   desc: 'Exclamation mark' },
   { char: "'",  file: 'apos',   desc: 'Apostrophe' },
-  { char: '"',  file: 'quo',    desc: 'Double quote' },
-  { char: ':',  file: 'colon',  desc: 'Colon' },
   { char: ';',  file: 'semi',   desc: 'Semicolon' },
-  { char: '-',  file: 'sub',    desc: 'Hyphen / minus' },
-  { char: '+',  file: 'plus',   desc: 'Plus' },
-  { char: '=',  file: 'equal',  desc: 'Equals' },
-  { char: '*',  file: 'star',   desc: 'Asterisk' },
-  { char: '/',  file: 'div',    desc: 'Slash / divide' },
-  { char: '\\', file: 'bslash', desc: 'Backslash' },
-  { char: '|',  file: 'pipe',   desc: 'Pipe' },
   { char: '%',  file: 'perc',   desc: 'Percent' },
   { char: '&',  file: 'amp',    desc: 'Ampersand' },
   { char: '@',  file: 'at',     desc: 'At sign' },
   { char: '_',  file: 'under',  desc: 'Underscore' },
   { char: '^',  file: 'caret',  desc: 'Caret' },
   { char: '~',  file: 'tilde',  desc: 'Tilde' },
+  { char: '\\', file: 'bslash', desc: 'Backslash' },
+  { char: '|',  file: 'pipe',   desc: 'Pipe' },
+  { char: ',',  file: 'coma',   desc: 'Comma' },
+  { char: '.',  file: 'fs',     desc: 'Period / Full stop' },
+  { char: '?',  file: 'que',    desc: 'Question mark' },
+  { char: '"',  file: 'quo',    desc: 'Double quote' },
+  { char: ':',  file: 'colon',  desc: 'Colon' },
+  { char: '-',  file: 'sub',    desc: 'Hyphen / minus' },
+  { char: '+',  file: 'plus',   desc: 'Plus' },
+  { char: '=',  file: 'equal',  desc: 'Equals' },
+  { char: '*',  file: 'star',   desc: 'Asterisk' },
+  { char: '/',  file: 'div',    desc: 'Slash / divide' },
   { char: '$',  file: 'dol1',   desc: 'Dollar sign' },
   { char: '(',  file: 'par1',   desc: 'Left parenthesis' },
   { char: ')',  file: 'par2',   desc: 'Right parenthesis' },
@@ -60,7 +63,6 @@ const GLYPH_MANIFEST = [
 ];
 
 // ─── 2. Layout Geometry & Presets (Clean 300 DPI Standard) ───────────────────
-// High resolution 300 DPI print standard: A4 = 2480 x 3508 px
 const DEFAULT_LAYOUT = Object.freeze({
   pageW:        2480,
   pageH:        3508,
@@ -80,6 +82,7 @@ const DEFAULT_APPEARANCE = Object.freeze({
   paperStyle:   'ruled',    // 'ruled' | 'grid' | 'vintage' | 'blank-white' | 'blank-cream' | 'dark'
   useJitter:    true,
   useDrift:     true,
+  useCreep:     true,       // subtle margin creep
 });
 
 const PAGE_SIZE_PRESETS = {
@@ -88,11 +91,14 @@ const PAGE_SIZE_PRESETS = {
   letter: { label: 'US Letter',     pageW: 2550, pageH: 3300, marginTop: 400, marginLeft: 270, lineSpacing: 105 },
 };
 
-const STORAGE_KEY = 'inkforge-config-v4';
+const STORAGE_KEY = 'inkforge-config-v5';
+const USER_GLYPHS_STORAGE_KEY = 'inkforge-user-drawn-glyphs';
+
+const $ = id => document.getElementById(id);
 
 let activeLayout = { ...DEFAULT_LAYOUT };
 let activeAppearance = { ...DEFAULT_APPEARANCE };
-let customGlyphMap = {}; // filename -> Image for uploaded custom PNG glyphs
+let customGlyphMap = {}; // filename -> Image for uploaded or drawn custom PNG glyphs
 
 function deriveLayout(l) {
   const textStartX = l.marginLeft;
@@ -120,12 +126,25 @@ function getCharFilename(letter, charIndex) {
 }
 
 function loadImg(name) {
-  if (activeAppearance.fontFamily === 'custom-png' && customGlyphMap[name]) {
+  if (!name || name === ' ' || !name.trim()) return Promise.resolve(null);
+  if (customGlyphMap[name]) {
     return Promise.resolve(customGlyphMap[name]);
   }
   if (imgCache[name]) return imgCache[name];
+
   const promise = new Promise((resolve) => {
+    // 1. Instant zero-CORS Base64 cache (bundled in font-data.js for offline file:// support)
+    if (window.DEFAULT_MYFONT_GLYPHS && window.DEFAULT_MYFONT_GLYPHS[name]) {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => resolve(null);
+      img.src = window.DEFAULT_MYFONT_GLYPHS[name];
+      return;
+    }
+
+    // 2. Direct directory fetch fallback
     const img = new Image();
+    img.crossOrigin = 'anonymous';
     img.onload  = () => resolve(img);
     img.onerror = () => resolve(null);
     img.src = `myfont/${name}.png`;
@@ -138,10 +157,15 @@ async function preloadGlyphsForModel(docModel) {
   if (activeAppearance.fontFamily !== 'custom-png') return;
   const needed = new Set();
   for (const para of docModel) {
+    if (para.type === 'diagram' || para.type === 'math') continue;
     for (const run of para.runs) {
       for (const ch of run.text) {
+        if (!ch || /^\s+$/.test(ch)) continue;
         if (ch === '$') { needed.add('dol1'); needed.add('dol2'); continue; }
-        if (VALID_CHARS.includes(ch)) needed.add(getCharFilename(ch, 0));
+        const fn = getCharFilename(ch, 0);
+        if (fn && fn !== ' ' && fn.trim().length > 0) {
+          needed.add(fn);
+        }
       }
     }
   }
@@ -158,17 +182,45 @@ function parseEditorDOM(editorEl) {
       const text = node.textContent;
       if (text.trim().length > 0 || children.length === 1) {
         paragraphs.push({
+          type: 'text',
           headingLevel: 0,
           alignment: 'left',
           listType: currentList,
           listItemIndex: listIdx,
-          runs: [{ text, bold: false, italic: false, underline: false }]
+          runs: [{ text, bold: false, italic: false, underline: false, strike: false }]
         });
       }
       return;
     }
 
     if (node.nodeType !== Node.ELEMENT_NODE) return;
+
+    // Check Diagram Block
+    if (node.classList && node.classList.contains('editor-diagram-block')) {
+      const img = node.querySelector('img');
+      const caption = node.querySelector('.diagram-caption')?.textContent || '';
+      if (img && img.src) {
+        paragraphs.push({
+          type: 'diagram',
+          imgSrc: img.src,
+          caption: caption,
+          runs: []
+        });
+        return;
+      }
+    }
+
+    // Check Math Formula Block
+    if (node.classList && node.classList.contains('editor-math-block')) {
+      const latex = node.dataset.latex || node.textContent.replace(/\$/g, '').trim();
+      paragraphs.push({
+        type: 'math',
+        latex: latex,
+        runs: []
+      });
+      return;
+    }
+
     const tag = node.tagName.toLowerCase();
 
     if (tag === 'ul') {
@@ -192,13 +244,14 @@ function parseEditorDOM(editorEl) {
     if (alignStyle === 'center' || alignStyle === 'right') alignment = alignStyle;
 
     const runs = [];
-    parseInlineNodes(node, runs, false, false, false);
+    parseInlineNodes(node, runs, false, false, false, false);
 
     if (runs.length === 0) {
-      runs.push({ text: '', bold: false, italic: false, underline: false });
+      runs.push({ text: '', bold: false, italic: false, underline: false, strike: false });
     }
 
     paragraphs.push({
+      type: 'text',
       headingLevel,
       alignment,
       listType: currentList || (tag === 'li' ? 'unordered' : null),
@@ -207,23 +260,24 @@ function parseEditorDOM(editorEl) {
     });
   }
 
-  function parseInlineNodes(element, runs, isBold, isItalic, isUnderline) {
+  function parseInlineNodes(element, runs, isBold, isItalic, isUnderline, isStrike) {
     for (const child of Array.from(element.childNodes)) {
       if (child.nodeType === Node.TEXT_NODE) {
         const text = child.textContent;
         if (text) {
-          runs.push({ text, bold: isBold, italic: isItalic, underline: isUnderline });
+          runs.push({ text, bold: isBold, italic: isItalic, underline: isUnderline, strike: isStrike });
         }
       } else if (child.nodeType === Node.ELEMENT_NODE) {
         const tag = child.tagName.toLowerCase();
         const b = isBold || tag === 'b' || tag === 'strong' || child.style.fontWeight === 'bold' || parseInt(child.style.fontWeight) >= 600;
         const i = isItalic || tag === 'i' || tag === 'em' || child.style.fontStyle === 'italic';
         const u = isUnderline || tag === 'u' || (child.style.textDecoration && child.style.textDecoration.includes('underline'));
-        
+        const s = isStrike || tag === 's' || tag === 'strike' || tag === 'del' || (child.style.textDecoration && child.style.textDecoration.includes('line-through'));
+
         if (tag === 'br') {
-          runs.push({ text: '\n', bold: b, italic: i, underline: u });
+          runs.push({ text: '\n', bold: b, italic: i, underline: u, strike: s });
         } else {
-          parseInlineNodes(child, runs, b, i, u);
+          parseInlineNodes(child, runs, b, i, u, s);
         }
       }
     }
@@ -237,11 +291,12 @@ function parseEditorDOM(editorEl) {
 
   if (paragraphs.length === 0) {
     paragraphs.push({
+      type: 'text',
       headingLevel: 0,
       alignment: 'left',
       listType: null,
       listItemIndex: 1,
-      runs: [{ text: '', bold: false, italic: false, underline: false }]
+      runs: [{ text: '', bold: false, italic: false, underline: false, strike: false }]
     });
   }
 
@@ -249,17 +304,6 @@ function parseEditorDOM(editorEl) {
 }
 
 // ─── 5. Fast Canvas Compositor & Tinting Engine ──────────────────────────────
-function hexToRgb(hex) {
-  let c = hex.replace('#', '');
-  if (c.length === 3) c = c.split('').map(x => x + x).join('');
-  return {
-    r: parseInt(c.slice(0, 2), 16) || 0,
-    g: parseInt(c.slice(2, 4), 16) || 0,
-    b: parseInt(c.slice(4, 6), 16) || 0,
-  };
-}
-
-// GPU-accelerated source-in compositing (100x faster than CPU loop)
 function getTintedGlyphCanvas(img, w, h, color, offscreenCache) {
   const cacheKey = `${img.src || img._id || 'glyph'}_${w}x${h}_${color}`;
   if (offscreenCache[cacheKey]) return offscreenCache[cacheKey];
@@ -321,6 +365,21 @@ function drawWavyUnderline(ctx, startX, endX, y, color) {
   ctx.restore();
 }
 
+function drawScratchOutScribble(ctx, startX, endX, y, color) {
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = Math.max(2, Math.round(3.5 * (activeAppearance.fontSize / 16)));
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(startX - 4, y);
+  const step = 9;
+  for (let x = startX; x <= endX + 4; x += step) {
+    ctx.lineTo(x, y + jitter(-5, 5));
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+
 // ─── 6. Background Creator & Caching ─────────────────────────────────────────
 const backgroundCache = {};
 
@@ -334,17 +393,14 @@ function createBackground(lo) {
   const ctx = canvas.getContext('2d');
 
   if (style === 'ruled') {
-    // Ruled notebook: clean off-white ivory paper with red margin and blue ruled lines
     ctx.fillStyle = '#fdfbf7';
     ctx.fillRect(0, 0, lo.pageW, lo.pageH);
 
-    // Subtle paper texture grain
     ctx.fillStyle = 'rgba(0, 0, 0, 0.015)';
     for (let i = 0; i < lo.pageW; i += 300) {
       ctx.fillRect(i, 0, 1, lo.pageH);
     }
 
-    // Red vertical margin line
     ctx.strokeStyle = '#f87171';
     ctx.lineWidth = 3;
     ctx.beginPath();
@@ -352,19 +408,14 @@ function createBackground(lo) {
     ctx.lineTo(lo.marginLeft - 20, lo.pageH);
     ctx.stroke();
 
-    // Blue horizontal ruled lines
     ctx.strokeStyle = '#93c5fd';
     ctx.lineWidth = 1.8;
     const maxY = lo.pageH - lo.marginBottom;
     for (let y = lo.marginTop; y <= maxY; y += lo.lineSpacing) {
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(lo.pageW, y);
-      ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(lo.pageW, y); ctx.stroke();
     }
 
   } else if (style === 'grid') {
-    // Engineering Math / Grid Paper
     ctx.fillStyle = '#fbfdf9';
     ctx.fillRect(0, 0, lo.pageW, lo.pageH);
 
@@ -379,7 +430,6 @@ function createBackground(lo) {
       ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(lo.pageW, y); ctx.stroke();
     }
 
-    // Margin rule
     ctx.strokeStyle = '#ef4444';
     ctx.lineWidth = 2.5;
     ctx.beginPath();
@@ -387,7 +437,6 @@ function createBackground(lo) {
     ctx.stroke();
 
   } else if (style === 'vintage') {
-    // Vintage Sepia Parchment
     const grad = ctx.createRadialGradient(lo.pageW/2, lo.pageH/2, lo.pageW*0.2, lo.pageW/2, lo.pageH/2, lo.pageW*0.8);
     grad.addColorStop(0, '#fbf4ea');
     grad.addColorStop(1, '#eddcc7');
@@ -402,7 +451,6 @@ function createBackground(lo) {
     }
 
   } else if (style === 'dark') {
-    // Dark Blackboard
     ctx.fillStyle = '#161a23';
     ctx.fillRect(0, 0, lo.pageW, lo.pageH);
 
@@ -414,7 +462,6 @@ function createBackground(lo) {
     }
 
   } else {
-    // Blank variants
     const colors = {
       'blank-white': '#ffffff',
       'blank-cream': '#fdfaf2',
@@ -437,11 +484,11 @@ async function renderPages(docModel, onProgress) {
   const d = deriveLayout(lo);
   const useJitter = activeAppearance.useJitter;
   const useDrift = activeAppearance.useDrift;
+  const useCreep = activeAppearance.useCreep;
   const pen = activeAppearance.penStyle;
   const inkColor = activeAppearance.inkColor;
   const isCustomPng = activeAppearance.fontFamily === 'custom-png';
 
-  // Base font size scaling (pt to 300 DPI canvas px)
   const baseFontSizePx = Math.round((activeAppearance.fontSize || 16) * 2.8);
   const pngScale = (activeAppearance.fontSize || 16) * 0.026;
 
@@ -471,7 +518,10 @@ async function renderPages(docModel, onProgress) {
     lineIdx++;
     const nextY = lo.marginTop + lineIdx * lo.lineSpacing;
     if (nextY > d.maxTextY) return false;
-    curX = d.textStartX + (useJitter ? jitter(0, 25) : 0);
+    
+    // Margin creep simulation
+    const creepOffset = useCreep ? Math.min(35, Math.round(lineIdx * 1.1)) : 0;
+    curX = d.textStartX + creepOffset + (useJitter ? jitter(0, 20) : 0);
     return true;
   }
 
@@ -484,19 +534,17 @@ async function renderPages(docModel, onProgress) {
     canvas.width = lo.pageW; canvas.height = lo.pageH;
     ctx = canvas.getContext('2d');
     ctx.drawImage(bgCanvas, 0, 0);
-    curX = d.textStartX + (useJitter ? jitter(0, 25) : 0);
+    curX = d.textStartX + (useJitter ? jitter(0, 20) : 0);
     lineIdx = 1;
   }
 
   const headingMultipliers = { 0: 1.0, 1: 1.5, 2: 1.3, 3: 1.15 };
 
-  // Calculate baseline drift for realism
   function getBaselineOffset(x) {
     if (!useDrift) return 0;
     return Math.sin(x / 240) * 3.5 + Math.cos(x / 580) * 2.0;
   }
 
-  // Pen stroke setup
   function applyPenProperties(context) {
     if (pen === 'ballpoint') {
       context.globalAlpha = 0.90 + Math.random() * 0.09;
@@ -509,7 +557,6 @@ async function renderPages(docModel, onProgress) {
     }
   }
 
-  // Measure word width
   async function measureWordWidth(word, runFormat, fontPx, scale) {
     if (isCustomPng) {
       let w = 0;
@@ -520,7 +567,6 @@ async function renderPages(docModel, onProgress) {
         if (img) {
           w += Math.round(img.width * scale) + (useJitter ? 3 : 2);
         } else {
-          // Fallback vector measurement
           ctx.save();
           ctx.font = `${runFormat.bold ? 'bold ' : ''}${runFormat.italic ? 'italic ' : ''}${fontPx}px "Caveat", cursive`;
           w += ctx.measureText(ch).width + (useJitter ? 3 : 2);
@@ -537,20 +583,20 @@ async function renderPages(docModel, onProgress) {
     }
   }
 
-  // Render a word onto canvas
   async function renderWord(word, runFormat, fontPx, scale, wrapMidWord) {
     const wordStartX = curX;
     const ruleBaselineY = lo.marginTop + lineIdx * lo.lineSpacing;
 
     if (isCustomPng) {
-      // PNG glyph rendering with graceful vector fallback for missing symbols
       for (let ci = 0; ci < word.length; ci++) {
         const ch = word[ci];
         const name = getCharFilename(ch, ci);
         const img = await loadImg(name);
 
-        const jx = useJitter ? jitter(-1, 2) : 0;
-        const jy = useJitter ? jitter(-2, 2) : 0;
+        // Multi-variant micro-variation for identical consecutive letters
+        const isRepeated = ci > 0 && word[ci] === word[ci - 1];
+        const jx = (useJitter || isRepeated) ? jitter(-2, 3) : 0;
+        const jy = (useJitter || isRepeated) ? jitter(-3, 3) : 0;
         const drift = getBaselineOffset(curX);
 
         if (img) {
@@ -563,7 +609,6 @@ async function renderPages(docModel, onProgress) {
           drawTintedGlyph(ctx, img, curX + jx, drawY, scale, inkColor, runFormat.bold, runFormat.italic, offscreenCache);
           curX += gw + (useJitter ? jitter(2, 5) : 3);
         } else {
-          // Vector fallback (renders characters like ! ; ' & % that are not in myfont)
           ctx.save();
           applyPenProperties(ctx);
           ctx.fillStyle = inkColor;
@@ -579,7 +624,6 @@ async function renderPages(docModel, onProgress) {
         }
       }
     } else {
-      // Vector Google Handwriting Font with micro-jitter & rotation
       for (let ci = 0; ci < word.length; ci++) {
         const ch = word[ci];
         ctx.save();
@@ -594,9 +638,10 @@ async function renderPages(docModel, onProgress) {
           if (!advanceLine()) await savePage();
         }
 
-        const jx = useJitter ? jitter(-1, 2) : 0;
-        const jy = useJitter ? jitter(-2, 2) : 0;
-        const rot = useJitter ? (jitter(-15, 15) * Math.PI) / 1800 : 0; // micro-rotation
+        const isRepeated = ci > 0 && word[ci] === word[ci - 1];
+        const jx = (useJitter || isRepeated) ? jitter(-2, 3) : 0;
+        const jy = (useJitter || isRepeated) ? jitter(-2, 2) : 0;
+        const rot = useJitter ? (jitter(-18, 18) * Math.PI) / 1800 : 0;
         const drift = getBaselineOffset(curX);
         const textY = ruleBaselineY - 10 + drift + jy;
 
@@ -604,7 +649,6 @@ async function renderPages(docModel, onProgress) {
         if (rot !== 0) ctx.rotate(rot);
         ctx.fillText(ch, 0, 0);
 
-        // Underline bold simulation for specific pen styles
         if (runFormat.bold && pen === 'fountain') {
           ctx.fillStyle = inkColor;
           ctx.fillText(ch, 0.7, 0.4);
@@ -619,11 +663,92 @@ async function renderPages(docModel, onProgress) {
       const underlineY = (lo.marginTop + lineIdx * lo.lineSpacing) - 4 + getBaselineOffset(wordStartX);
       drawWavyUnderline(ctx, wordStartX, curX, underlineY, inkColor);
     }
+
+    if (runFormat.strike && curX > wordStartX) {
+      const strikeY = (lo.marginTop + lineIdx * lo.lineSpacing) - Math.round(35 * (activeAppearance.fontSize / 16)) + getBaselineOffset(wordStartX);
+      drawScratchOutScribble(ctx, wordStartX, curX, strikeY, inkColor);
+    }
   }
 
   // Iterate paragraphs
   for (let pi = 0; pi < docModel.length; pi++) {
     const para = docModel[pi];
+
+    // ── Handle Diagrams ──
+    if (para.type === 'diagram') {
+      const img = new Image();
+      img.src = para.imgSrc;
+      await new Promise(res => { img.onload = res; img.onerror = res; });
+      if (img.width && img.height) {
+        const maxDiagW = d.contentW * 0.7;
+        const diagScale = Math.min(1.0, maxDiagW / img.width);
+        const dw = Math.round(img.width * diagScale);
+        const dh = Math.round(img.height * diagScale);
+        const requiredLines = Math.ceil(dh / lo.lineSpacing) + 1;
+
+        if (lo.marginTop + (lineIdx + requiredLines) * lo.lineSpacing > d.maxTextY) {
+          await savePage();
+        }
+
+        const diagX = d.textStartX + Math.round((d.contentW - dw) / 2);
+        const diagY = lo.marginTop + lineIdx * lo.lineSpacing;
+        
+        ctx.save();
+        ctx.drawImage(img, diagX, diagY, dw, dh);
+        ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(diagX, diagY, dw, dh);
+        ctx.restore();
+
+        lineIdx += requiredLines;
+        if (para.caption) {
+          ctx.save();
+          ctx.fillStyle = inkColor;
+          ctx.font = `italic ${Math.round(baseFontSizePx * 0.8)}px "Caveat", cursive`;
+          ctx.textAlign = 'center';
+          ctx.fillText(para.caption, d.textStartX + d.contentW / 2, lo.marginTop + lineIdx * lo.lineSpacing - 10);
+          ctx.restore();
+          lineIdx++;
+        }
+        curX = d.textStartX;
+        continue;
+      }
+    }
+
+    // ── Handle Math Formulas ──
+    if (para.type === 'math' && window.katex) {
+      try {
+        const mathSpan = document.createElement('span');
+        katex.render(para.latex, mathSpan, { displayMode: true, throwOnError: false });
+
+        const mathSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="${d.contentW}" height="140">
+          <foreignObject width="100%" height="100%">
+            <div xmlns="http://www.w3.org/1999/xhtml" style="font-size:26px; color:${inkColor}; text-align:center;">
+              ${mathSpan.innerHTML}
+            </div>
+          </foreignObject>
+        </svg>`;
+
+        const mathImg = new Image();
+        mathImg.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(mathSvg);
+        await new Promise(res => { mathImg.onload = res; mathImg.onerror = res; });
+
+        const requiredLines = 2;
+        if (lo.marginTop + (lineIdx + requiredLines) * lo.lineSpacing > d.maxTextY) {
+          await savePage();
+        }
+
+        const mathY = lo.marginTop + lineIdx * lo.lineSpacing;
+        ctx.drawImage(mathImg, d.textStartX, mathY - 15);
+        lineIdx += requiredLines;
+        curX = d.textStartX;
+        continue;
+      } catch (err) {
+        console.warn('Math render error:', err);
+      }
+    }
+
+    // ── Handle Standard Text ──
     const hMult = headingMultipliers[para.headingLevel] || 1.0;
     const fontPx = Math.round(baseFontSizePx * hMult);
     const scale = pngScale * hMult;
@@ -639,16 +764,14 @@ async function renderPages(docModel, onProgress) {
 
     curX = d.textStartX + (useJitter ? jitter(0, 20) : 0);
 
-    // List bullet / index
     if (para.listType === 'unordered') {
-      await renderWord('•', { bold: true, italic: false, underline: false }, fontPx, scale, false);
+      await renderWord('•', { bold: true, italic: false, underline: false, strike: false }, fontPx, scale, false);
       curX += 16;
     } else if (para.listType === 'ordered') {
-      await renderWord(`${para.listItemIndex || 1}.`, { bold: true, italic: false, underline: false }, fontPx, scale, false);
+      await renderWord(`${para.listItemIndex || 1}.`, { bold: true, italic: false, underline: false, strike: false }, fontPx, scale, false);
       curX += 16;
     }
 
-    // Split runs into word tokens
     const tokens = [];
     for (const run of para.runs) {
       const parts = run.text.split(/(\s+)/);
@@ -658,7 +781,6 @@ async function renderPages(docModel, onProgress) {
       }
     }
 
-    // Line wrapping & rendering
     let tokenIdx = 0;
     while (tokenIdx < tokens.length) {
       const tok = tokens[tokenIdx];
@@ -671,10 +793,8 @@ async function renderPages(docModel, onProgress) {
 
       const wordW = await measureWordWidth(tok.text, tok.run, fontPx, scale);
 
-      // Line overflow
       if (curX + wordW > d.textEndX) {
         if (tok.text.length > 12 && wordW > d.contentW * 0.5) {
-          // Break very long strings cleanly
           await renderWord(tok.text, tok.run, fontPx, scale, true);
         } else {
           if (!advanceLine()) await savePage();
@@ -703,21 +823,62 @@ function updateLivePreview(docModel) {
   previewDebounceTimer = setTimeout(() => doUpdateLivePreview(docModel), 35);
 }
 
-function doUpdateLivePreview(docModel) {
+async function doUpdateLivePreview(docModel) {
   const container = document.getElementById('preview-page');
   const indicator = document.getElementById('page-indicator');
   const prevBtn = document.getElementById('prev-page-btn');
   const nextBtn = document.getElementById('next-page-btn');
   const viewport = document.getElementById('preview-viewport');
+  const thumbsBar = document.getElementById('preview-thumbnails-bar');
   if (!container || !viewport) return;
+
+  // Real-time canvas render for custom PNG font or complex math/diagram documents
+  const hasCustomOrMedia = activeAppearance.fontFamily === 'custom-png' || docModel.some(p => p.type === 'diagram' || p.type === 'math');
+
+  if (hasCustomOrMedia) {
+    try {
+      const { pages } = await renderPages(docModel);
+      generatedCanvases = pages;
+      if (currentPreviewPageIndex >= pages.length) currentPreviewPageIndex = pages.length - 1;
+      if (currentPreviewPageIndex < 0) currentPreviewPageIndex = 0;
+
+      container.innerHTML = '';
+      container.style.backgroundImage = 'none';
+      container.style.boxShadow = 'none';
+      container.style.margin = '0 auto';
+      container.style.width = '100%';
+      container.style.height = 'auto';
+
+      const canvas = pages[currentPreviewPageIndex];
+      const img = document.createElement('img');
+      img.src = canvas.toDataURL('image/png');
+      img.style.width = '100%';
+      img.style.height = 'auto';
+      img.style.display = 'block';
+      img.style.borderRadius = '4px';
+      img.style.boxShadow = '0 4px 20px rgba(0,0,0,0.5)';
+      container.appendChild(img);
+
+      renderThumbnails(pages);
+
+      indicator.textContent = `Page ${currentPreviewPageIndex + 1} of ${pages.length}`;
+      prevBtn.disabled = currentPreviewPageIndex === 0;
+      nextBtn.disabled = currentPreviewPageIndex === pages.length - 1;
+      dlPngBtn.disabled = false;
+      dlAllBtn.disabled = false;
+      dlPdfBtn.disabled = false;
+      return;
+    } catch (err) {
+      console.warn('Live render error:', err);
+    }
+  }
 
   const lo = deriveLayout(activeLayout);
   const bgCanvas = createBackground(activeLayout);
   const bgUrl = bgCanvas.toDataURL();
-  const fontChoice = activeAppearance.fontFamily === 'custom-png' ? 'Caveat' : activeAppearance.fontFamily;
+  const fontChoice = activeAppearance.fontFamily;
   const baseFontSize = Math.round((activeAppearance.fontSize || 16) * 1.6);
 
-  // Divide document into estimated pages
   const pages = [[]];
   let curPageIdx = 0;
   let accumulatedHeight = activeLayout.lineSpacing;
@@ -747,7 +908,7 @@ function doUpdateLivePreview(docModel) {
   if (currentPreviewPageIndex < 0) currentPreviewPageIndex = 0;
 
   const pageParas = previewPagesList[currentPreviewPageIndex] || [];
-  const scale = 0.28; // Responsive scale for preview
+  const scale = 0.28;
 
   const scaledPageW = Math.round(activeLayout.pageW * scale);
   const scaledPageH = Math.round(activeLayout.pageH * scale);
@@ -790,6 +951,7 @@ function doUpdateLivePreview(docModel) {
       if (run.italic) styles += 'font-style:italic; transform:skewX(-8deg); display:inline-block;';
       if (run.bold) styles += 'font-weight:700; text-shadow: 1px 0px 0px currentColor;';
       if (run.underline) styles += 'text-decoration:underline;';
+      if (run.strike) styles += 'text-decoration:line-through; color:rgba(239,68,68,0.85);';
       if (styles) t = `<span style="${styles}">${t}</span>`;
       html += t;
     });
@@ -805,6 +967,32 @@ function doUpdateLivePreview(docModel) {
   nextBtn.disabled = currentPreviewPageIndex === pages.length - 1;
 }
 
+function renderThumbnails(canvases) {
+  const bar = document.getElementById('preview-thumbnails-bar');
+  if (!bar || !canvases.length) return;
+  bar.innerHTML = '';
+
+  canvases.forEach((c, idx) => {
+    const card = document.createElement('div');
+    card.className = `preview-thumbnail-card ${idx === currentPreviewPageIndex ? 'active' : ''}`;
+    const img = document.createElement('img');
+    img.src = c.toDataURL('image/jpeg', 0.6);
+    card.appendChild(img);
+
+    const badge = document.createElement('span');
+    badge.className = 'thumbnail-badge';
+    badge.textContent = `${idx + 1}`;
+    card.appendChild(badge);
+
+    card.addEventListener('click', () => {
+      currentPreviewPageIndex = idx;
+      doUpdateLivePreview(activeDocModel);
+    });
+
+    bar.appendChild(card);
+  });
+}
+
 window.addEventListener('resize', () => updateLivePreview(activeDocModel));
 
 // ─── 9. File Download Helper ──────────────────────────────────────────────────
@@ -817,9 +1005,365 @@ function downloadCanvas(canvas, filename) {
   setTimeout(() => document.body.removeChild(link), 150);
 }
 
-// ─── 10. UI Wiring & Customization Panel ─────────────────────────────────────
-const $ = id => document.getElementById(id);
+// ─── 10. Glyph Studio (Interactive Character Synthesizer) ────────────────────
+const glyphStudioModal   = $('glyph-studio-modal');
+const openGlyphStudioBtn = $('open-glyph-studio-btn');
+const closeGlyphStudioBtn= $('close-glyph-studio-btn');
+const glyphCharPicker    = $('glyph-char-picker');
+const currentCharStatus  = $('current-char-status');
+const currentCharFilename= $('current-char-filename');
+const glyphCurrentPreview= $('glyph-current-preview');
+const glyphDrawCanvas    = $('glyph-draw-canvas');
+const toolPenBtn         = $('tool-pen-btn');
+const toolEraserBtn      = $('tool-eraser-btn');
+const penSizeSlider      = $('pen-size-slider');
+const penSizeVal         = $('pen-size-val');
+const drawUndoBtn        = $('draw-undo-btn');
+const drawClearBtn       = $('draw-clear-btn');
+const saveDrawnGlyphBtn  = $('save-drawn-glyph-btn');
+const exportGlyphPackBtn = $('export-glyph-pack-btn');
 
+let drawCtx = null;
+let isDrawing = false;
+let currentDrawTool = 'pen'; // 'pen' | 'eraser'
+let drawUndoStack = [];
+
+function initGlyphStudio() {
+  if (!glyphDrawCanvas) return;
+  drawCtx = glyphDrawCanvas.getContext('2d', { willReadFrequently: true });
+  drawCtx.lineCap = 'round';
+  drawCtx.lineJoin = 'round';
+
+  // Populate Character Picker
+  glyphCharPicker.innerHTML = '';
+  GLYPH_MANIFEST.forEach(g => {
+    const opt = document.createElement('option');
+    opt.value = g.file;
+    opt.dataset.char = g.char;
+    opt.textContent = `${g.char} — ${g.desc} (${g.file}.png)`;
+    glyphCharPicker.appendChild(opt);
+  });
+
+  // Load Saved Glyphs from LocalStorage
+  try {
+    const saved = localStorage.getItem(USER_GLYPHS_STORAGE_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      Object.entries(parsed).forEach(([name, dataUrl]) => {
+        const img = new Image();
+        img.onload = () => { customGlyphMap[name] = img; };
+        img.src = dataUrl;
+      });
+    }
+  } catch {}
+
+  glyphCharPicker.addEventListener('change', onSelectedCharChange);
+  openGlyphStudioBtn.addEventListener('click', () => {
+    glyphStudioModal.style.display = 'flex';
+    onSelectedCharChange();
+  });
+  closeGlyphStudioBtn.addEventListener('click', () => {
+    glyphStudioModal.style.display = 'none';
+  });
+
+  // Tools
+  toolPenBtn.addEventListener('click', () => {
+    currentDrawTool = 'pen';
+    toolPenBtn.classList.add('active');
+    toolEraserBtn.classList.remove('active');
+  });
+  toolEraserBtn.addEventListener('click', () => {
+    currentDrawTool = 'eraser';
+    toolEraserBtn.classList.add('active');
+    toolPenBtn.classList.remove('active');
+  });
+  penSizeSlider.addEventListener('input', () => {
+    penSizeVal.textContent = `${penSizeSlider.value}px`;
+  });
+
+  // Drawing event listeners
+  function getCanvasCoords(e) {
+    const rect = glyphDrawCanvas.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    return {
+      x: (clientX - rect.left) * (glyphDrawCanvas.width / rect.width),
+      y: (clientY - rect.top) * (glyphDrawCanvas.height / rect.height),
+    };
+  }
+
+  function saveUndo() {
+    drawUndoStack.push(drawCtx.getImageData(0, 0, glyphDrawCanvas.width, glyphDrawCanvas.height));
+    if (drawUndoStack.length > 15) drawUndoStack.shift();
+  }
+
+  glyphDrawCanvas.addEventListener('mousedown', (e) => {
+    saveUndo();
+    isDrawing = true;
+    const { x, y } = getCanvasCoords(e);
+    drawCtx.beginPath();
+    drawCtx.moveTo(x, y);
+    setupDrawStroke();
+    drawCtx.lineTo(x, y);
+    drawCtx.stroke();
+  });
+
+  window.addEventListener('mousemove', (e) => {
+    if (!isDrawing) return;
+    const { x, y } = getCanvasCoords(e);
+    setupDrawStroke();
+    drawCtx.lineTo(x, y);
+    drawCtx.stroke();
+  });
+
+  window.addEventListener('mouseup', () => { isDrawing = false; });
+
+  // Touch
+  glyphDrawCanvas.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    saveUndo();
+    isDrawing = true;
+    const { x, y } = getCanvasCoords(e);
+    drawCtx.beginPath();
+    drawCtx.moveTo(x, y);
+    setupDrawStroke();
+    drawCtx.lineTo(x, y);
+    drawCtx.stroke();
+  }, { passive: false });
+
+  glyphDrawCanvas.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    if (!isDrawing) return;
+    const { x, y } = getCanvasCoords(e);
+    setupDrawStroke();
+    drawCtx.lineTo(x, y);
+    drawCtx.stroke();
+  }, { passive: false });
+
+  glyphDrawCanvas.addEventListener('touchend', () => { isDrawing = false; });
+
+  drawUndoBtn.addEventListener('click', () => {
+    if (drawUndoStack.length > 0) {
+      const last = drawUndoStack.pop();
+      drawCtx.putImageData(last, 0, 0);
+    }
+  });
+
+  drawClearBtn.addEventListener('click', () => {
+    saveUndo();
+    drawCtx.clearRect(0, 0, glyphDrawCanvas.width, glyphDrawCanvas.height);
+  });
+
+  saveDrawnGlyphBtn.addEventListener('click', saveDrawnCharacter);
+  exportGlyphPackBtn.addEventListener('click', exportGlyphPack);
+}
+
+function setupDrawStroke() {
+  const size = parseInt(penSizeSlider.value) || 5;
+  drawCtx.lineWidth = size;
+  if (currentDrawTool === 'eraser') {
+    drawCtx.globalCompositeOperation = 'destination-out';
+  } else {
+    drawCtx.globalCompositeOperation = 'source-over';
+    drawCtx.strokeStyle = '#111827';
+  }
+}
+
+async function onSelectedCharChange() {
+  const selectedFile = glyphCharPicker.value;
+  currentCharFilename.textContent = `${selectedFile}.png`;
+
+  const existing = await loadImg(selectedFile);
+  drawCtx.clearRect(0, 0, glyphDrawCanvas.width, glyphDrawCanvas.height);
+  drawUndoStack = [];
+
+  if (existing) {
+    currentCharStatus.textContent = 'Custom/Present';
+    currentCharStatus.className = 'glyph-badge badge-present';
+    glyphCurrentPreview.innerHTML = `<img src="${existing.src}" />`;
+
+    // Draw reference onto canvas
+    drawCtx.save();
+    const scale = 1.3;
+    const dx = (glyphDrawCanvas.width - existing.width * scale) / 2;
+    const dy = (glyphDrawCanvas.height - existing.height * scale) / 2;
+    drawCtx.drawImage(existing, dx, dy, existing.width * scale, existing.height * scale);
+    drawCtx.restore();
+  } else {
+    currentCharStatus.textContent = 'Missing';
+    currentCharStatus.className = 'glyph-badge badge-missing';
+    glyphCurrentPreview.innerHTML = '<span>None</span>';
+  }
+}
+
+function saveDrawnCharacter() {
+  const fileName = glyphCharPicker.value;
+  const idata = drawCtx.getImageData(0, 0, glyphDrawCanvas.width, glyphDrawCanvas.height);
+  const d = idata.data;
+
+  // Find bounding box
+  let minX = glyphDrawCanvas.width, maxX = 0, minY = glyphDrawCanvas.height, maxY = 0;
+  let hasPixels = false;
+
+  for (let y = 0; y < glyphDrawCanvas.height; y++) {
+    for (let x = 0; x < glyphDrawCanvas.width; x++) {
+      const alpha = d[(y * glyphDrawCanvas.width + x) * 4 + 3];
+      if (alpha > 15) {
+        hasPixels = true;
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+
+  if (!hasPixels) { alert('Canvas is empty. Draw a character first.'); return; }
+
+  // Add 10px padding
+  const pad = 10;
+  minX = Math.max(0, minX - pad);
+  minY = Math.max(0, minY - pad);
+  maxX = Math.min(glyphDrawCanvas.width, maxX + pad);
+  maxY = Math.min(glyphDrawCanvas.height, maxY + pad);
+
+  const cropW = Math.max(10, maxX - minX);
+  const cropH = Math.max(10, maxY - minY);
+
+  // Resize to standard 160px height
+  const targetH = 160;
+  const targetW = Math.round((cropW / cropH) * targetH);
+
+  const cropCanvas = document.createElement('canvas');
+  cropCanvas.width = targetW;
+  cropCanvas.height = targetH;
+  const cctx = cropCanvas.getContext('2d');
+  cctx.drawImage(glyphDrawCanvas, minX, minY, cropW, cropH, 0, 0, targetW, targetH);
+
+  const dataUrl = cropCanvas.toDataURL('image/png');
+  const img = new Image();
+  img.onload = () => {
+    customGlyphMap[fileName] = img;
+    currentCharStatus.textContent = 'Saved (Custom)';
+    currentCharStatus.className = 'glyph-badge badge-present';
+    glyphCurrentPreview.innerHTML = `<img src="${dataUrl}" />`;
+
+    // Persist to LocalStorage
+    try {
+      const saved = JSON.parse(localStorage.getItem(USER_GLYPHS_STORAGE_KEY) || '{}');
+      saved[fileName] = dataUrl;
+      localStorage.setItem(USER_GLYPHS_STORAGE_KEY, JSON.stringify(saved));
+    } catch {}
+
+    // Switch to custom PNG mode if not already
+    activeAppearance.fontFamily = 'custom-png';
+    $('handwriting-font').value = 'custom-png';
+    $('custom-glyph-area').style.display = 'inline-flex';
+    saveSettingsToStorage();
+    onEditorInput();
+    setStatus('done', `✅ Saved glyph "${fileName}.png" into custom font!`);
+  };
+  img.src = dataUrl;
+}
+
+function exportGlyphPack() {
+  const pack = {};
+  GLYPH_MANIFEST.forEach(g => {
+    if (customGlyphMap[g.file]) {
+      pack[g.file] = customGlyphMap[g.file].src;
+    } else if (window.DEFAULT_MYFONT_GLYPHS && window.DEFAULT_MYFONT_GLYPHS[g.file]) {
+      pack[g.file] = window.DEFAULT_MYFONT_GLYPHS[g.file];
+    }
+  });
+
+  const blob = new Blob([JSON.stringify(pack, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.download = 'inkforge-custom-glyphs.json';
+  a.href = URL.createObjectURL(blob);
+  a.click();
+}
+
+// ─── 11. KaTeX Math Modal & Diagram Upload ────────────────────────────────────
+const insertMathBtn      = $('insert-math-btn');
+const mathFormulaModal   = $('math-formula-modal');
+const closeMathModalBtn  = $('close-math-modal-btn');
+const cancelMathBtn      = $('cancel-math-btn');
+const insertMathSubmitBtn= $('insert-math-submit-btn');
+const mathLatexInput     = $('math-latex-input');
+const mathLivePreview    = $('math-live-preview');
+const mathQuickBtns      = document.querySelectorAll('.math-quick-btn');
+
+const insertDiagramBtn   = $('insert-diagram-btn');
+const diagramUploadInput = $('diagram-upload-input');
+
+function initMathAndDiagrams() {
+  if (insertMathBtn) {
+    insertMathBtn.addEventListener('click', () => {
+      mathFormulaModal.style.display = 'flex';
+      mathLatexInput.focus();
+      updateMathPreview();
+    });
+  }
+
+  [closeMathModalBtn, cancelMathBtn].forEach(btn => {
+    if (btn) btn.addEventListener('click', () => { mathFormulaModal.style.display = 'none'; });
+  });
+
+  function updateMathPreview() {
+    const tex = mathLatexInput.value.trim() || 'E = mc^2';
+    if (window.katex && mathLivePreview) {
+      try {
+        katex.render(tex, mathLivePreview, { displayMode: true, throwOnError: false });
+      } catch (err) {
+        mathLivePreview.innerHTML = `<span style="color:#ef4444;font-size:0.8rem">${err.message}</span>`;
+      }
+    }
+  }
+
+  if (mathLatexInput) {
+    mathLatexInput.addEventListener('input', updateMathPreview);
+  }
+
+  mathQuickBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      mathLatexInput.value = btn.dataset.tex;
+      updateMathPreview();
+    });
+  });
+
+  if (insertMathSubmitBtn) {
+    insertMathSubmitBtn.addEventListener('click', () => {
+      const tex = mathLatexInput.value.trim();
+      if (!tex) return;
+      const mathHtml = `<div class="editor-math-block" data-latex="${tex.replace(/"/g, '&quot;')}">$$${tex}$$</div><p></p>`;
+      document.execCommand('insertHTML', false, mathHtml);
+      mathFormulaModal.style.display = 'none';
+      onEditorInput();
+    });
+  }
+
+  // Diagram Upload
+  if (insertDiagramBtn) {
+    insertDiagramBtn.addEventListener('click', () => diagramUploadInput.click());
+  }
+
+  if (diagramUploadInput) {
+    diagramUploadInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        const diagramHtml = `<div class="editor-diagram-block"><img src="${evt.target.result}" /><div class="diagram-caption" contenteditable="true">Figure: ${file.name.replace(/\.[^/.]+$/, "")}</div></div><p></p>`;
+        document.execCommand('insertHTML', false, diagramHtml);
+        onEditorInput();
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+}
+
+// ─── 12. UI Wiring & Customization Panel ─────────────────────────────────────
 const editorSurface    = $('editor-surface');
 const charCount        = $('char-count');
 const statusBar        = $('status-bar');
@@ -843,6 +1387,7 @@ const fontSizeInput    = $('font-size-input');
 const lineGapInput     = $('line-gap-input');
 const jitterToggle     = $('jitter-toggle');
 const driftToggle      = $('drift-toggle');
+const creepToggle      = $('creep-toggle');
 const resetBtn         = $('reset-btn');
 const missingToggleBtn = $('missing-chars-toggle');
 
@@ -987,6 +1532,14 @@ if (driftToggle) {
   });
 }
 
+if (creepToggle) {
+  creepToggle.addEventListener('change', () => {
+    activeAppearance.useCreep = creepToggle.checked;
+    saveSettingsToStorage();
+    onEditorInput();
+  });
+}
+
 // ── Custom Glyph PNG Upload ──
 glyphUploadBtn.addEventListener('click', () => glyphUploadInput.click());
 
@@ -1029,7 +1582,15 @@ glyphClearBtn.addEventListener('click', () => {
   onEditorInput();
 });
 
-// ── Preview Navigation ──
+// ── Preview Navigation & Refresh ──
+const previewTitleBtn = $('preview-title-btn');
+if (previewTitleBtn) {
+  previewTitleBtn.addEventListener('click', () => {
+    onEditorInput();
+    setStatus('idle', '🔄 Refreshed live notebook preview.');
+  });
+}
+
 $('prev-page-btn').addEventListener('click', () => {
   if (currentPreviewPageIndex > 0) {
     currentPreviewPageIndex--;
@@ -1067,6 +1628,8 @@ generateBtn.addEventListener('click', async () => {
     img.style.width = '100%';
     img.style.height = 'auto';
     previewContainer.appendChild(img);
+
+    renderThumbnails(pages);
 
     const n = pages.length;
     let statusMsg = `✅ ${n} page${n > 1 ? 's' : ''} synthesized at 300 DPI! Ready for download.`;
@@ -1203,6 +1766,7 @@ resetBtn.addEventListener('click', () => {
   inkColorInput.value = '#1a237e';
   jitterToggle.checked = true;
   if (driftToggle) driftToggle.checked = true;
+  if (creepToggle) creepToggle.checked = true;
 
   saveSettingsToStorage();
   onEditorInput();
@@ -1210,6 +1774,9 @@ resetBtn.addEventListener('click', () => {
 
 // ── Initial Boot ──
 (function init() {
+  initGlyphStudio();
+  initMathAndDiagrams();
+
   const saved = loadSettingsFromStorage();
   if (saved) {
     activeLayout = { ...DEFAULT_LAYOUT, ...(saved.layout || {}) };
@@ -1223,6 +1790,7 @@ resetBtn.addEventListener('click', () => {
     if (inkColorInput) inkColorInput.value = activeAppearance.inkColor || '#1a237e';
     if (jitterToggle) jitterToggle.checked = activeAppearance.useJitter !== false;
     if (driftToggle) driftToggle.checked = activeAppearance.useDrift !== false;
+    if (creepToggle) creepToggle.checked = activeAppearance.useCreep !== false;
   }
 
   setTimeout(onEditorInput, 80);

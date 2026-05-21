@@ -614,3 +614,182 @@ input[type="color"]::-webkit-color-swatch { border: none; border-radius: 3px; }
   .action-bar { flex-wrap: wrap; }
   .act-btn { font-size: 0.75rem; padding: 8px 6px; }
 }
+
+/* ===== MODAL DIALOGS ===== */
+.modal-backdrop {
+  position: fixed; inset: 0; z-index: 1000;
+  background: rgba(5, 7, 12, 0.78);
+  backdrop-filter: blur(12px);
+  display: flex; align-items: center; justify-content: center;
+  padding: 1.5rem;
+  animation: modalFadeIn 0.25s ease both;
+}
+@keyframes modalFadeIn {
+  from { opacity: 0; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1); }
+}
+.modal-box {
+  background: var(--surface);
+  border: 1px solid var(--border-hover);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow), 0 0 60px rgba(108, 99, 255, 0.15);
+  max-width: 760px; width: 100%; max-height: 90vh;
+  overflow-y: auto; display: flex; flex-direction: column;
+}
+.glyph-modal-box { max-width: 820px; }
+.math-modal-box { max-width: 680px; }
+.modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+}
+.modal-title { display: flex; align-items: center; gap: 12px; }
+.modal-icon { font-size: 1.5rem; }
+.modal-title h3 { font-size: 1.15rem; font-weight: 700; color: var(--text); }
+.modal-title p { font-size: 0.8rem; color: var(--text-muted); }
+.modal-close-btn {
+  background: transparent; border: none; font-size: 1.6rem;
+  color: var(--text-muted); cursor: pointer; line-height: 1;
+  padding: 4px 8px; border-radius: 4px; transition: color var(--transition);
+}
+.modal-close-btn:hover { color: #f87171; }
+.modal-body { padding: 1.5rem; }
+
+/* ===== GLYPH STUDIO ===== */
+.glyph-studio-layout {
+  display: grid; grid-template-columns: 240px 1fr; gap: 1.5rem;
+}
+.glyph-sidebar {
+  display: flex; flex-direction: column; gap: 14px;
+}
+.field-group label {
+  display: block; font-size: 0.82rem; font-weight: 600;
+  color: var(--text-muted); margin-bottom: 6px;
+}
+.glyph-status-info {
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--surface2); padding: 8px 12px; border-radius: var(--radius-xs);
+  border: 1px solid var(--border);
+}
+.glyph-badge {
+  font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+  padding: 2px 8px; border-radius: 999px;
+}
+.badge-present { background: rgba(74, 222, 128, 0.15); color: #4ade80; }
+.badge-missing { background: rgba(248, 113, 113, 0.15); color: #f87171; }
+.glyph-filename { font-family: monospace; font-size: 0.78rem; color: var(--accent2); }
+.glyph-preview-row label { display: block; font-size: 0.78rem; color: var(--text-muted); margin-bottom: 4px; }
+.glyph-current-preview {
+  width: 64px; height: 64px; border: 1px dashed var(--border);
+  border-radius: var(--radius-xs); display: flex; align-items: center;
+  justify-content: center; background: #fff; overflow: hidden;
+}
+.glyph-current-preview img { max-width: 100%; max-height: 100%; }
+.glyph-actions-stack { display: flex; flex-direction: column; gap: 8px; margin-top: auto; }
+
+/* Drawing Canvas & Guides */
+.glyph-drawing-col {
+  display: flex; flex-direction: column; gap: 10px;
+}
+.drawing-toolbar {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--surface2); padding: 8px 12px;
+  border: 1px solid var(--border); border-radius: var(--radius-xs);
+}
+.draw-tool-btn {
+  background: transparent; border: 1px solid transparent;
+  padding: 5px 10px; border-radius: var(--radius-xs);
+  color: var(--text-muted); font-size: 0.8rem; cursor: pointer;
+  transition: all var(--transition);
+}
+.draw-tool-btn:hover { background: rgba(108, 99, 255, 0.15); color: var(--text); }
+.draw-tool-btn.active {
+  background: rgba(108, 99, 255, 0.25); border-color: var(--accent); color: var(--accent2);
+}
+.canvas-drawing-container {
+  position: relative; width: 320px; height: 320px;
+  margin: 0 auto; background: #fdfbf7; border: 2px solid var(--border);
+  border-radius: var(--radius-sm); overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+}
+#glyph-draw-canvas {
+  width: 100%; height: 100%; cursor: crosshair; touch-action: none;
+  position: relative; z-index: 2;
+}
+.canvas-guide-line {
+  position: absolute; left: 0; right: 0; height: 1px;
+  border-bottom: 1px dashed rgba(147, 197, 253, 0.6);
+  pointer-events: none; z-index: 1;
+}
+.canvas-guide-line span {
+  position: absolute; right: 4px; top: -14px;
+  font-size: 0.65rem; color: #94a3b8; font-family: sans-serif;
+}
+.guide-ascender { top: 50px; }
+.guide-midline { top: 130px; border-bottom-color: rgba(147, 197, 253, 0.9); }
+.guide-baseline { top: 220px; border-bottom: 2px solid #ef4444; }
+.guide-descender { top: 285px; }
+.canvas-hint { font-size: 0.75rem; color: var(--text-dim); text-align: center; }
+
+/* ===== MATH MODAL & FORMULA BLOCKS ===== */
+.math-shortcuts {
+  display: flex; flex-wrap: wrap; gap: 6px;
+}
+.math-quick-btn {
+  padding: 6px 12px; background: var(--surface2);
+  border: 1px solid var(--border); border-radius: var(--radius-xs);
+  color: var(--accent2); font-family: monospace; font-size: 0.8rem;
+  cursor: pointer; transition: all var(--transition);
+}
+.math-quick-btn:hover { background: rgba(108, 99, 255, 0.2); border-color: var(--accent); }
+.math-textarea {
+  width: 100%; background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--radius-xs); padding: 10px; color: var(--text);
+  font-family: monospace; font-size: 0.88rem; outline: none; resize: vertical;
+}
+.math-textarea:focus { border-color: var(--accent); }
+.math-preview-box {
+  min-height: 60px; background: #fdfbf7; border: 1px solid var(--border);
+  border-radius: var(--radius-xs); padding: 12px; display: flex;
+  align-items: center; justify-content: center; color: #1a237e;
+  font-size: 1.25rem; overflow-x: auto;
+}
+.modal-footer-actions {
+  display: flex; justify-content: flex-end; gap: 8px; margin-top: 1.5rem;
+}
+
+/* In-Editor Diagram and Math Containers */
+.editor-math-block {
+  margin: 0.8em 0; padding: 10px 14px;
+  background: rgba(108, 99, 255, 0.08); border-left: 3px solid var(--accent);
+  border-radius: 4px; font-size: 1.15rem; color: var(--accent2);
+  text-align: center; user-select: all;
+}
+.editor-diagram-block {
+  margin: 1em 0; text-align: center;
+  background: rgba(255, 255, 255, 0.03); border: 1px dashed var(--border);
+  border-radius: var(--radius-sm); padding: 12px;
+}
+.editor-diagram-block img {
+  max-width: 100%; max-height: 260px; border-radius: 4px;
+}
+.diagram-caption {
+  font-size: 0.8rem; color: var(--text-muted); margin-top: 6px; font-style: italic;
+}
+
+/* Page Thumbnails Bar */
+.preview-thumbnails-bar {
+  display: flex; gap: 8px; overflow-x: auto; padding: 8px 12px;
+  background: var(--surface); border-bottom: 1px solid var(--border);
+}
+.preview-thumbnail-card {
+  flex-shrink: 0; width: 60px; height: 82px; border: 2px solid transparent;
+  border-radius: 4px; overflow: hidden; cursor: pointer; position: relative;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3); transition: all var(--transition);
+}
+.preview-thumbnail-card:hover { transform: translateY(-2px); border-color: var(--border-hover); }
+.preview-thumbnail-card.active { border-color: var(--accent); box-shadow: 0 0 10px var(--accent); }
+.preview-thumbnail-card img { width: 100%; height: 100%; object-fit: cover; }
+.thumbnail-badge {
+  position: absolute; bottom: 2px; right: 2px; font-size: 0.65rem;
+  background: rgba(0,0,0,0.7); color: #fff; padding: 1px 4px; border-radius: 2px;
+}
