@@ -1081,6 +1081,17 @@ function initGlyphStudio() {
     penSizeVal.textContent = `${penSizeSlider.value}px`;
   });
 
+  const toggleGhostBtn = $('toggle-ghost-btn');
+  if (toggleGhostBtn) {
+    toggleGhostBtn.addEventListener('click', () => {
+      ghostGuideEnabled = !ghostGuideEnabled;
+      toggleGhostBtn.classList.toggle('active', ghostGuideEnabled);
+      const selectedOpt = glyphCharPicker.options[glyphCharPicker.selectedIndex];
+      const targetChar = selectedOpt ? selectedOpt.dataset.char : 'a';
+      renderGhostGuide(targetChar);
+    });
+  }
+
   // Drawing event listeners
   function getCanvasCoords(e) {
     const rect = glyphDrawCanvas.getBoundingClientRect();
@@ -1169,9 +1180,31 @@ function setupDrawStroke() {
   }
 }
 
+let ghostGuideEnabled = true;
+
+function renderGhostGuide(char) {
+  const ghostCanvas = $('glyph-ghost-canvas');
+  if (!ghostCanvas) return;
+  const gctx = ghostCanvas.getContext('2d');
+  gctx.clearRect(0, 0, ghostCanvas.width, ghostCanvas.height);
+  if (!ghostGuideEnabled || !char) return;
+
+  gctx.save();
+  gctx.fillStyle = 'rgba(148, 163, 184, 0.35)';
+  gctx.font = '200px "Patrick Hand", "Caveat", "Outfit", sans-serif';
+  gctx.textAlign = 'center';
+  gctx.textBaseline = 'alphabetic';
+  gctx.fillText(char, ghostCanvas.width / 2, 220);
+  gctx.restore();
+}
+
 async function onSelectedCharChange() {
   const selectedFile = glyphCharPicker.value;
   currentCharFilename.textContent = `${selectedFile}.png`;
+
+  const selectedOpt = glyphCharPicker.options[glyphCharPicker.selectedIndex];
+  const targetChar = selectedOpt ? selectedOpt.dataset.char : 'a';
+  renderGhostGuide(targetChar);
 
   const existing = await loadImg(selectedFile);
   drawCtx.clearRect(0, 0, glyphDrawCanvas.width, glyphDrawCanvas.height);
@@ -1726,18 +1759,355 @@ missingToggleBtn.addEventListener('click', async () => {
 
     let html = `<p class="chars-summary">✅ <strong>${present.length}</strong> present | ℹ️ <strong>${missing.length}</strong> handled via vector fallback</p>`;
     if (missing.length) {
-      html += '<table class="chars-table"><thead><tr><th>Char</th><th>File</th></tr></thead><tbody>';
+      html += '<table class="chars-table"><thead><tr><th>Char</th><th>File</th><th>Action</th></tr></thead><tbody>';
       missing.forEach(g => {
         const safe = g.char === '<' ? '&lt;' : g.char === '>' ? '&gt;' : g.char === '&' ? '&amp;' : g.char;
-        html += `<tr><td class="glyph-char">${safe}</td><td><code>${g.file}.png</code></td></tr>`;
+        html += `<tr><td class="glyph-char">${safe}</td><td><code>${g.file}.png</code></td><td><button class="draw-missing-glyph-btn" data-file="${g.file}">🖌️ Draw in Studio</button></td></tr>`;
       });
       html += '</tbody></table>';
     } else {
       html += '<p style="color:#4ade80;font-size:0.85rem">🎉 All glyphs present in directory!</p>';
     }
     container.innerHTML = html;
+
+    container.querySelectorAll('.draw-missing-glyph-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const file = btn.dataset.file;
+        panel.classList.remove('open');
+        glyphStudioModal.style.display = 'flex';
+        glyphCharPicker.value = file;
+        onSelectedCharChange();
+      });
+    });
   }
 });
+
+// ─── 13. 2-Minute Fast Handwriting Creator Wizard ────────────────────────────
+const WIZARD_CATEGORIES = {
+  lower: GLYPH_MANIFEST.filter(g => g.char >= 'a' && g.char <= 'z'),
+  upper: GLYPH_MANIFEST.filter(g => g.char >= 'A' && g.char <= 'Z'),
+  digits: GLYPH_MANIFEST.filter(g => g.char >= '0' && g.char <= '9'),
+  symbols: GLYPH_MANIFEST.filter(g => !((g.char >= 'a' && g.char <= 'z') || (g.char >= 'A' && g.char <= 'Z') || (g.char >= '0' && g.char <= '9'))),
+};
+
+let currentWizardCat = 'lower';
+let currentWizardIndex = 0;
+let wizardDrawCtx = null;
+let wizardIsDrawing = false;
+let wizardUndoStack = [];
+let wizardGhostEnabled = true;
+
+function renderWizardGhost() {
+  const ghostCanvas = $('wizard-ghost-canvas');
+  if (!ghostCanvas) return;
+  const gctx = ghostCanvas.getContext('2d');
+  gctx.clearRect(0, 0, ghostCanvas.width, ghostCanvas.height);
+  if (!wizardGhostEnabled) return;
+
+  const list = WIZARD_CATEGORIES[currentWizardCat];
+  const item = list[currentWizardIndex];
+  if (!item) return;
+
+  gctx.save();
+  gctx.fillStyle = 'rgba(148, 163, 184, 0.35)';
+  gctx.font = '200px "Patrick Hand", "Caveat", "Outfit", sans-serif';
+  gctx.textAlign = 'center';
+  gctx.textBaseline = 'alphabetic';
+  gctx.fillText(item.char, ghostCanvas.width / 2, 220);
+  gctx.restore();
+}
+
+function populateWizardChips() {
+  const container = $('wizard-char-chips');
+  if (!container) return;
+  container.innerHTML = '';
+  const list = WIZARD_CATEGORIES[currentWizardCat];
+
+  list.forEach((item, idx) => {
+    const chip = document.createElement('div');
+    chip.className = 'wizard-chip';
+    if (idx === currentWizardIndex) chip.classList.add('active');
+    if (customGlyphMap[item.file] || (window.DEFAULT_MYFONT_GLYPHS && window.DEFAULT_MYFONT_GLYPHS[item.file])) {
+      chip.classList.add('done');
+    }
+    chip.textContent = item.char;
+    chip.addEventListener('click', () => {
+      currentWizardIndex = idx;
+      setupWizardStep();
+    });
+    container.appendChild(chip);
+  });
+}
+
+async function setupWizardStep() {
+  const list = WIZARD_CATEGORIES[currentWizardCat];
+  if (currentWizardIndex < 0) currentWizardIndex = 0;
+  if (currentWizardIndex >= list.length) currentWizardIndex = list.length - 1;
+  const item = list[currentWizardIndex];
+  if (!item) return;
+
+  const targetCharEl = $('wizard-target-char');
+  const targetDescEl = $('wizard-target-desc');
+  const stepLabelEl = $('wizard-step-label');
+  const fillEl = $('wizard-progress-fill');
+
+  if (targetCharEl) targetCharEl.textContent = item.char;
+  if (targetDescEl) targetDescEl.textContent = item.desc;
+  if (stepLabelEl) stepLabelEl.innerHTML = `Character <b>${currentWizardIndex + 1}</b> of <b>${list.length}</b>: <b>${item.char}</b>`;
+
+  const pct = Math.round(((currentWizardIndex + 1) / list.length) * 100);
+  if (fillEl) fillEl.style.width = `${pct}%`;
+
+  const wizardCanvas = $('wizard-draw-canvas');
+  if (wizardDrawCtx && wizardCanvas) {
+    wizardDrawCtx.clearRect(0, 0, wizardCanvas.width, wizardCanvas.height);
+    wizardUndoStack = [];
+
+    const existing = await loadImg(item.file);
+    if (existing) {
+      const scale = 1.3;
+      const dx = (wizardCanvas.width - existing.width * scale) / 2;
+      const dy = (wizardCanvas.height - existing.height * scale) / 2;
+      wizardDrawCtx.drawImage(existing, dx, dy, existing.width * scale, existing.height * scale);
+    }
+  }
+
+  renderWizardGhost();
+  populateWizardChips();
+}
+
+function saveAndAdvanceWizard(dir) {
+  const list = WIZARD_CATEGORIES[currentWizardCat];
+  const item = list[currentWizardIndex];
+  const wizardCanvas = $('wizard-draw-canvas');
+  if (!item || !wizardCanvas || !wizardDrawCtx) {
+    advanceWizard(dir);
+    return;
+  }
+
+  const idata = wizardDrawCtx.getImageData(0, 0, wizardCanvas.width, wizardCanvas.height);
+  const d = idata.data;
+  let minX = wizardCanvas.width, maxX = 0, minY = wizardCanvas.height, maxY = 0;
+  let hasPixels = false;
+
+  for (let y = 0; y < wizardCanvas.height; y++) {
+    for (let x = 0; x < wizardCanvas.width; x++) {
+      if (d[(y * wizardCanvas.width + x) * 4 + 3] > 15) {
+        hasPixels = true;
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+
+  if (hasPixels) {
+    const pad = 10;
+    minX = Math.max(0, minX - pad);
+    minY = Math.max(0, minY - pad);
+    maxX = Math.min(wizardCanvas.width, maxX + pad);
+    maxY = Math.min(wizardCanvas.height, maxY + pad);
+
+    const cropW = Math.max(10, maxX - minX);
+    const cropH = Math.max(10, maxY - minY);
+    const targetH = 160;
+    const targetW = Math.round((cropW / cropH) * targetH);
+
+    const cropCanvas = document.createElement('canvas');
+    cropCanvas.width = targetW;
+    cropCanvas.height = targetH;
+    const cctx = cropCanvas.getContext('2d');
+    cctx.drawImage(wizardCanvas, minX, minY, cropW, cropH, 0, 0, targetW, targetH);
+
+    const dataUrl = cropCanvas.toDataURL('image/png');
+    const img = new Image();
+    img.onload = () => {
+      customGlyphMap[item.file] = img;
+      try {
+        const saved = JSON.parse(localStorage.getItem(USER_GLYPHS_STORAGE_KEY) || '{}');
+        saved[item.file] = dataUrl;
+        localStorage.setItem(USER_GLYPHS_STORAGE_KEY, JSON.stringify(saved));
+      } catch {}
+    };
+    img.src = dataUrl;
+  }
+
+  advanceWizard(dir);
+}
+
+function advanceWizard(dir) {
+  const list = WIZARD_CATEGORIES[currentWizardCat];
+  currentWizardIndex += dir;
+  if (currentWizardIndex >= list.length) {
+    if (currentWizardCat === 'lower') {
+      currentWizardCat = 'upper';
+      currentWizardIndex = 0;
+    } else if (currentWizardCat === 'upper') {
+      currentWizardCat = 'digits';
+      currentWizardIndex = 0;
+    } else if (currentWizardCat === 'digits') {
+      currentWizardCat = 'symbols';
+      currentWizardIndex = 0;
+    } else {
+      currentWizardIndex = list.length - 1;
+    }
+    document.querySelectorAll('.wizard-tab').forEach(t => {
+      t.classList.toggle('active', t.dataset.cat === currentWizardCat);
+    });
+  } else if (currentWizardIndex < 0) {
+    currentWizardIndex = 0;
+  }
+  setupWizardStep();
+}
+
+function initHandwritingWizard() {
+  const wizardModal = $('wizard-modal');
+  const openWizardBtn = $('open-wizard-btn');
+  const closeWizardBtn = $('close-wizard-btn');
+  const wizardCanvas = $('wizard-draw-canvas');
+  if (!wizardModal || !wizardCanvas) return;
+
+  wizardDrawCtx = wizardCanvas.getContext('2d', { willReadFrequently: true });
+  wizardDrawCtx.lineCap = 'round';
+  wizardDrawCtx.lineJoin = 'round';
+
+  if (openWizardBtn) {
+    openWizardBtn.addEventListener('click', () => {
+      wizardModal.style.display = 'flex';
+      setupWizardStep();
+    });
+  }
+
+  if (closeWizardBtn) {
+    closeWizardBtn.addEventListener('click', () => {
+      wizardModal.style.display = 'none';
+    });
+  }
+
+  document.querySelectorAll('.wizard-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.wizard-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      currentWizardCat = tab.dataset.cat;
+      currentWizardIndex = 0;
+      setupWizardStep();
+    });
+  });
+
+  const ghostToggle = $('wizard-ghost-toggle');
+  if (ghostToggle) {
+    ghostToggle.addEventListener('change', () => {
+      wizardGhostEnabled = ghostToggle.checked;
+      renderWizardGhost();
+    });
+  }
+
+  function getCoords(e) {
+    const rect = wizardCanvas.getBoundingClientRect();
+    const cx = e.touches ? e.touches[0].clientX : e.clientX;
+    const cy = e.touches ? e.touches[0].clientY : e.clientY;
+    return {
+      x: (cx - rect.left) * (wizardCanvas.width / rect.width),
+      y: (cy - rect.top) * (wizardCanvas.height / rect.height)
+    };
+  }
+
+  wizardCanvas.addEventListener('mousedown', (e) => {
+    wizardUndoStack.push(wizardDrawCtx.getImageData(0, 0, wizardCanvas.width, wizardCanvas.height));
+    wizardIsDrawing = true;
+    const { x, y } = getCoords(e);
+    wizardDrawCtx.beginPath();
+    wizardDrawCtx.moveTo(x, y);
+    wizardDrawCtx.lineWidth = 5;
+    wizardDrawCtx.strokeStyle = '#111827';
+    wizardDrawCtx.lineTo(x, y);
+    wizardDrawCtx.stroke();
+  });
+
+  window.addEventListener('mousemove', (e) => {
+    if (!wizardIsDrawing) return;
+    const { x, y } = getCoords(e);
+    wizardDrawCtx.lineTo(x, y);
+    wizardDrawCtx.stroke();
+  });
+
+  window.addEventListener('mouseup', () => { wizardIsDrawing = false; });
+
+  wizardCanvas.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    wizardUndoStack.push(wizardDrawCtx.getImageData(0, 0, wizardCanvas.width, wizardCanvas.height));
+    wizardIsDrawing = true;
+    const { x, y } = getCoords(e);
+    wizardDrawCtx.beginPath();
+    wizardDrawCtx.moveTo(x, y);
+    wizardDrawCtx.lineWidth = 5;
+    wizardDrawCtx.strokeStyle = '#111827';
+    wizardDrawCtx.lineTo(x, y);
+    wizardDrawCtx.stroke();
+  }, { passive: false });
+
+  wizardCanvas.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    if (!wizardIsDrawing) return;
+    const { x, y } = getCoords(e);
+    wizardDrawCtx.lineTo(x, y);
+    wizardDrawCtx.stroke();
+  }, { passive: false });
+
+  wizardCanvas.addEventListener('touchend', () => { wizardIsDrawing = false; });
+
+  const undoBtn = $('wizard-undo-btn');
+  if (undoBtn) {
+    undoBtn.addEventListener('click', () => {
+      if (wizardUndoStack.length > 0) {
+        const last = wizardUndoStack.pop();
+        wizardDrawCtx.putImageData(last, 0, 0);
+      }
+    });
+  }
+
+  const clearBtn = $('wizard-clear-btn');
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+      wizardDrawCtx.clearRect(0, 0, wizardCanvas.width, wizardCanvas.height);
+      wizardUndoStack = [];
+    });
+  }
+
+  const nextBtn = $('wizard-next-btn');
+  if (nextBtn) nextBtn.addEventListener('click', () => { saveAndAdvanceWizard(1); });
+
+  const prevBtn = $('wizard-prev-btn');
+  if (prevBtn) prevBtn.addEventListener('click', () => { saveAndAdvanceWizard(-1); });
+
+  const skipBtn = $('wizard-skip-btn');
+  if (skipBtn) skipBtn.addEventListener('click', () => { advanceWizard(1); });
+
+  const finishBtn = $('wizard-finish-btn');
+  if (finishBtn) {
+    finishBtn.addEventListener('click', () => {
+      wizardModal.style.display = 'none';
+      activeAppearance.fontFamily = 'custom-png';
+      $('handwriting-font').value = 'custom-png';
+      $('custom-glyph-area').style.display = 'inline-flex';
+      saveSettingsToStorage();
+      onEditorInput();
+      setStatus('done', '🎉 Personalized handwriting active! Document rendered.');
+    });
+  }
+
+  const exportBtn = $('wizard-export-btn');
+  if (exportBtn) exportBtn.addEventListener('click', exportGlyphPack);
+
+  window.addEventListener('keydown', (e) => {
+    if (wizardModal.style.display !== 'none' && e.key === 'Enter') {
+      e.preventDefault();
+      saveAndAdvanceWizard(1);
+    }
+  });
+}
 
 // ── Storage & Reset ──
 function saveSettingsToStorage() {
@@ -1776,6 +2146,7 @@ resetBtn.addEventListener('click', () => {
 (function init() {
   initGlyphStudio();
   initMathAndDiagrams();
+  initHandwritingWizard();
 
   const saved = loadSettingsFromStorage();
   if (saved) {

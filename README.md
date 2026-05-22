@@ -27,6 +27,15 @@ Zero installation, zero server dependencies — runs completely in the browser.
   - **Vintage Parchment**: Warm sepia tones and organic vignetting.
   - **Blank (White & Cream)**: Clean stationery.
   - **Chalkboard / Dark**: Inverted dark mode paper.
+- ✨ **2-Minute Fast Handwriting Creator Wizard**:
+  - Digitize your entire personal alphabet in under 2 minutes without scanning or photographing paper.
+  - Step-by-step guided stepper cycling through lowercase (`a-z`), uppercase (`A-Z`), digits (`0-9`), and symbols.
+  - Ghost stencil guidelines for easy tracing and keyboard shortcut acceleration (`Enter` to save & advance).
+  - Export and import custom `.inkfont` JSON packs and immediately apply them to your notes.
+- 🔍 **Smart Missing Glyph Solver**:
+  - Interactive coverage inspector with 1-click `[Draw in Studio]` buttons for any missing character.
+  - Deep-links directly into Glyph Studio with the missing character pre-selected.
+  - Ghost guide overlays showing standard letter proportions for effortless alignment.
 - 🖌️ **Interactive Glyph Studio**:
   - Draw custom handwriting glyphs directly in your browser using mouse or stylus.
   - Typography reference guidelines (ascender, midline, baseline, and descender).
@@ -137,7 +146,12 @@ You can digitize your own personal handwriting using the `myfont/` directory or 
   - Multi-page thumbnail visual navigator with smooth scroll and active page jump.
   - Organic handwriting flaws (natural margin creep and multi-pass pen scratch-outs).
   - Interactive Glyph Studio with stylus drawing, guideline box, LocalStorage sync, and JSON pack export.
-- [ ] **Milestone 4: Automated Glyph Extractor**
+- [x] **Milestone 4: Fast Handwriting Creator Wizard & Missing Glyph Solver**
+  - 2-Minute step-by-step guided handwriting creation wizard with ghost stencils.
+  - Interactive coverage table with 1-click "Draw in Studio" buttons and character deep-linking.
+  - Ghost stencil guidelines for easy tracing and keyboard shortcut acceleration.
+  - Custom font pack (.inkfont JSON) export, import, and instant document auto-healing.
+- [ ] **Milestone 5: Single-Sheet Photo Grid Scanner**
   - Built-in photo scanner: upload a single sheet containing a character grid to auto-slice and generate custom PNG fonts automatically.
 
 ---

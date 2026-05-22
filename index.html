@@ -240,6 +240,7 @@
       </div>
 
       <div class="cp-group cp-actions">
+        <button class="cp-btn cp-wizard-btn" id="open-wizard-btn" title="Create your entire personalized handwriting font in 2 minutes">✨ Fast Font Wizard</button>
         <button class="cp-btn" id="open-glyph-studio-btn" title="Draw or customize missing characters on an interactive canvas">🖌️ Glyph Studio</button>
         <button class="cp-btn cp-reset" id="reset-btn" title="Reset defaults">↺ Reset</button>
         <button class="cp-btn" id="missing-chars-toggle">🔍 Coverage</button>
@@ -362,11 +363,13 @@
             <input type="range" id="pen-size-slider" min="2" max="14" value="5" />
             <span id="pen-size-val">5px</span>
             <div class="tb-sep"></div>
+            <button class="draw-tool-btn active" id="toggle-ghost-btn" title="Toggle faint ghost stencil guide">👻 Ghost</button>
             <button class="draw-tool-btn" id="draw-undo-btn" title="Undo Stroke">↩ Undo</button>
             <button class="draw-tool-btn" id="draw-clear-btn" title="Clear Canvas">🗑️ Clear</button>
           </div>
           <div class="canvas-drawing-container">
-            <canvas id="glyph-draw-canvas" width="320" height="320"></canvas>
+            <canvas id="glyph-ghost-canvas" width="320" height="320" style="position:absolute; top:0; left:0; pointer-events:none; z-index:1;"></canvas>
+            <canvas id="glyph-draw-canvas" width="320" height="320" style="position:relative; z-index:2; background:transparent;"></canvas>
             <div class="canvas-guide-line guide-ascender"><span>Ascender</span></div>
             <div class="canvas-guide-line guide-midline"><span>Midline</span></div>
             <div class="canvas-guide-line guide-baseline"><span>Baseline</span></div>
@@ -415,6 +418,82 @@
         </div>
       </div>
     </div>
+  <!-- 2-Minute Handwriting Onboarding Wizard Modal -->
+  <div class="modal-backdrop" id="wizard-modal" style="display:none;">
+    <div class="modal-box wizard-modal-box">
+      <div class="modal-header">
+        <div class="modal-title">
+          <span class="modal-icon">✨</span>
+          <div>
+            <h3>2-Minute Handwriting Creator</h3>
+            <p>Trace or draw characters sequentially &mdash; create your personal digital handwriting in minutes</p>
+          </div>
+        </div>
+        <button class="modal-close-btn" id="close-wizard-btn">&times;</button>
+      </div>
+
+      <!-- Stepper / Category bar -->
+      <div class="wizard-stepper-bar">
+        <div class="wizard-tabs">
+          <button class="wizard-tab active" data-cat="lower">Lowercase (a-z)</button>
+          <button class="wizard-tab" data-cat="upper">Uppercase (A-Z)</button>
+          <button class="wizard-tab" data-cat="digits">Digits (0-9)</button>
+          <button class="wizard-tab" data-cat="symbols">Punctuation</button>
+        </div>
+        <div class="wizard-progress-wrap">
+          <span class="wizard-step-label" id="wizard-step-label">Character 1 of 26: <b>a</b></span>
+          <div class="wizard-progress-bar"><div class="wizard-progress-fill" id="wizard-progress-fill" style="width: 4%;"></div></div>
+        </div>
+      </div>
+
+      <div class="modal-body wizard-body-layout">
+        <!-- Center drawing area -->
+        <div class="wizard-canvas-col">
+          <div class="wizard-char-display" id="wizard-char-display">
+            <span class="wizard-giant-char" id="wizard-target-char">a</span>
+            <span class="wizard-char-name" id="wizard-target-desc">Lowercase A</span>
+          </div>
+
+          <div class="canvas-drawing-container wizard-canvas-container">
+            <canvas id="wizard-ghost-canvas" width="320" height="320" style="position:absolute; top:0; left:0; pointer-events:none; z-index:1;"></canvas>
+            <canvas id="wizard-draw-canvas" width="320" height="320" style="position:relative; z-index:2; background:transparent;"></canvas>
+            <div class="canvas-guide-line guide-ascender"><span>Ascender</span></div>
+            <div class="canvas-guide-line guide-midline"><span>Midline</span></div>
+            <div class="canvas-guide-line guide-baseline"><span>Baseline</span></div>
+            <div class="canvas-guide-line guide-descender"><span>Descender</span></div>
+          </div>
+
+          <div class="wizard-canvas-tools">
+            <button class="draw-tool-btn" id="wizard-undo-btn" title="Undo Stroke">↩ Undo</button>
+            <button class="draw-tool-btn" id="wizard-clear-btn" title="Clear Canvas">🗑️ Clear</button>
+            <label class="toggle-ghost-label">
+              <input type="checkbox" id="wizard-ghost-toggle" checked /> 👻 Ghost Stencil Guide
+            </label>
+          </div>
+        </div>
+
+        <!-- Sidebar / Navigation -->
+        <div class="wizard-nav-col">
+          <div class="wizard-quick-palette">
+            <label>Quick Character Jump:</label>
+            <div class="wizard-char-chips" id="wizard-char-chips">
+              <!-- Populated dynamically with chips showing completion state -->
+            </div>
+          </div>
+
+          <div class="wizard-actions-group">
+            <div class="wizard-btn-row">
+              <button class="act-btn act-dl" id="wizard-prev-btn">◀ Prev</button>
+              <button class="act-btn act-generate" id="wizard-next-btn">Save &amp; Next ▶ (Enter)</button>
+            </div>
+            <button class="act-btn act-skip" id="wizard-skip-btn">Skip Character ↷</button>
+            <hr class="wizard-divider" />
+            <button class="act-btn act-finish" id="wizard-finish-btn">🎉 Apply Handwriting to Notes</button>
+            <button class="act-btn act-dl" id="wizard-export-btn">📦 Export Font Pack (.json)</button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Footer -->
@@ -422,7 +501,7 @@
     <p>InkForge &mdash; Authentic Text to Handwriting Studio. Crafted with vanilla JavaScript &amp; HTML5 Canvas.</p>
   </footer>
 
-  <script src="font-data.js?v=1.2.0"></script>
-  <script src="app.js?v=1.2.0"></script>
+  <script src="font-data.js?v=1.3.0"></script>
+  <script src="app.js?v=1.3.0"></script>
 </body>
 </html>
