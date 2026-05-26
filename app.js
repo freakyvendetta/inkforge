@@ -1167,6 +1167,25 @@ function initGlyphStudio() {
 
   saveDrawnGlyphBtn.addEventListener('click', saveDrawnCharacter);
   exportGlyphPackBtn.addEventListener('click', exportGlyphPack);
+
+  const dlSinglePngBtn = $('download-drawn-png-btn');
+  if (dlSinglePngBtn) {
+    dlSinglePngBtn.addEventListener('click', () => {
+      const fileName = glyphCharPicker.value;
+      saveDrawnCharacter();
+      const existing = customGlyphMap[fileName] || (window.DEFAULT_MYFONT_GLYPHS && window.DEFAULT_MYFONT_GLYPHS[fileName]);
+      if (existing) {
+        const src = existing.src || existing;
+        const a = document.createElement('a');
+        a.href = src;
+        a.download = `${fileName}.png`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setStatus('done', `⬇ Downloaded "${fileName}.png" into your downloads!`);
+      }
+    });
+  }
 }
 
 function setupDrawStroke() {
