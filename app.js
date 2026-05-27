@@ -93,6 +93,300 @@ const PAGE_SIZE_PRESETS = {
 
 const STORAGE_KEY = 'inkforge-config-v5';
 const USER_GLYPHS_STORAGE_KEY = 'inkforge-user-drawn-glyphs';
+const FONT_LIBRARY_STORAGE_KEY = 'inkforge-custom-font-library-v1';
+
+let customFontLibrary = {
+  activeFontId: 'default',
+  fonts: {
+    'default': {
+      id: 'default',
+      name: 'Default Scanned (myfont/)',
+      glyphs: {}
+    }
+  }
+};
+
+let myFontDirectoryHandle = null;
+
+function isCustomFont(fontFamily) {
+  return fontFamily === 'custom-png' || (typeof fontFamily === 'string' && (fontFamily.startsWith('custom:') || fontFamily === 'custom'));
+}
+
+function getActiveCustomFontId() {
+  if (activeAppearance.fontFamily && typeof activeAppearance.fontFamily === 'string' && activeAppearance.fontFamily.startsWith('custom:')) {
+    return activeAppearance.fontFamily.replace('custom:', '');
+  }
+  return customFontLibrary.activeFontId || 'default';
+}
+
+function getActiveCustomFont() {
+  const fontId = getActiveCustomFontId();
+  if (!customFontLibrary.fonts[fontId]) {
+    customFontLibrary.fonts[fontId] = { id: fontId, name: 'Custom Font', glyphs: {} };
+  }
+  return customFontLibrary.fonts[fontId];
+}
+
+function saveFontLibrary() {
+  try {
+    localStorage.setItem(FONT_LIBRARY_STORAGE_KEY, JSON.stringify(customFontLibrary));
+  } catch (err) {
+    console.warn('Failed to save font library to localStorage:', err);
+  }
+}
+
+function updateCustomFontsDropdown() {
+  const optgroup = $('custom-fonts-optgroup');
+  if (!optgroup) return;
+
+  optgroup.innerHTML = '';
+
+  // Default font
+  const defaultOpt = document.createElement('option');
+  defaultOpt.value = 'custom-png';
+  const defGlyphs = Object.keys(customFontLibrary.fonts['default']?.glyphs || {}).length;
+  defaultOpt.textContent = `Default Scanned (myfont/)${defGlyphs > 0 ? ` [${defGlyphs} glyphs]` : ''}`;
+  optgroup.appendChild(defaultOpt);
+
+  // Other fonts
+  Object.values(customFontLibrary.fonts).forEach(f => {
+    if (f.id === 'default') return;
+    const opt = document.createElement('option');
+    opt.value = `custom:${f.id}`;
+    const count = Object.keys(f.glyphs || {}).length;
+    opt.textContent = `${f.name} (${count} glyphs)`;
+    optgroup.appendChild(opt);
+  });
+
+  // Create new option
+  const newOpt = document.createElement('option');
+  newOpt.value = '__new_custom_font__';
+  newOpt.textContent = '➕ Create New Custom Font...';
+  optgroup.appendChild(newOpt);
+
+  if (isCustomFont(activeAppearance.fontFamily)) {
+    fontSelect.value = activeAppearance.fontFamily;
+  }
+}
+
+function switchActiveCustomFont(fontId) {
+  if (!customFontLibrary.fonts[fontId]) {
+    fontId = 'default';
+  }
+  customFontLibrary.activeFontId = fontId;
+  const font = customFontLibrary.fonts[fontId];
+
+  // Clear and reload customGlyphMap
+  customGlyphMap = {};
+  if (font && font.glyphs) {
+    Object.entries(font.glyphs).forEach(([name, dataUrl]) => {
+      const img = new Image();
+      img.onload = () => { customGlyphMap[name] = img; };
+      img.src = dataUrl;
+    });
+  }
+
+  activeAppearance.fontFamily = fontId === 'default' ? 'custom-png' : `custom:${fontId}`;
+  if (fontSelect) fontSelect.value = activeAppearance.fontFamily;
+  const glyphArea = $('custom-glyph-area');
+  if (glyphArea) glyphArea.style.display = 'inline-flex';
+  updateCustomFontsDropdown();
+  saveFontLibrary();
+  saveSettingsToStorage();
+  onEditorInput();
+}
+
+function createNewCustomFont(name) {
+  const newId = 'font_' + Date.now();
+  customFontLibrary.fonts[newId] = {
+    id: newId,
+    name: name,
+    glyphs: {}
+  };
+  switchActiveCustomFont(newId);
+  return newId;
+}
+
+function loadFontLibrary() {
+  try {
+    const raw = localStorage.getItem(FONT_LIBRARY_STORAGE_KEY);
+    if (raw) {
+      customFontLibrary = JSON.parse(raw);
+    }
+  } catch {}
+
+  if (!customFontLibrary.fonts || typeof customFontLibrary.fonts !== 'object') {
+    customFontLibrary.fonts = {};
+  }
+  if (!customFontLibrary.fonts['default']) {
+    customFontLibrary.fonts['default'] = {
+      id: 'default',
+      name: 'Default Scanned (myfont/)',
+      glyphs: {}
+    };
+  }
+
+  // Migrate legacy USER_GLYPHS_STORAGE_KEY into default if present
+  try {
+    const legacy = localStorage.getItem(USER_GLYPHS_STORAGE_KEY);
+    if (legacy) {
+      const parsedLegacy = JSON.parse(legacy);
+      Object.assign(customFontLibrary.fonts['default'].glyphs, parsedLegacy);
+    }
+  } catch {}
+
+  const activeId = getActiveCustomFontId();
+  if (customFontLibrary.fonts[activeId]) {
+    customFontLibrary.activeFontId = activeId;
+    const font = customFontLibrary.fonts[activeId];
+    Object.entries(font.glyphs || {}).forEach(([name, dataUrl]) => {
+      const img = new Image();
+      img.onload = () => { customGlyphMap[name] = img; };
+      img.src = dataUrl;
+    });
+  }
+
+  updateCustomFontsDropdown();
+}
+
+async function linkMyFontFolder() {
+  if (!('showDirectoryPicker' in window)) {
+    alert('The File System Access API is supported in modern desktop browsers (Chrome, Edge, Opera, Brave). In unsupported browsers, use Download .PNG or Export Font Pack.');
+    return;
+  }
+  try {
+    myFontDirectoryHandle = await window.showDirectoryPicker({
+      id: 'inkforge-myfont-dir',
+      mode: 'readwrite',
+      startIn: 'documents'
+    });
+    const badge = $('linked-folder-status');
+    if (badge) {
+      badge.textContent = `✓ Linked: ${myFontDirectoryHandle.name}/`;
+      badge.style.display = 'inline-flex';
+    }
+    const linkBtn = $('link-myfont-folder-btn');
+    if (linkBtn) {
+      linkBtn.textContent = `📁 Linked: '${myFontDirectoryHandle.name}/'`;
+      linkBtn.style.borderColor = '#22c55e';
+      linkBtn.style.color = '#4ade80';
+    }
+    setStatus('done', `📁 Linked to "${myFontDirectoryHandle.name}" folder! Saved glyphs will write directly to disk.`);
+  } catch (err) {
+    if (err.name !== 'AbortError') {
+      console.warn('Directory picker error:', err);
+    }
+  }
+}
+
+async function writeGlyphToLinkedFolder(fileName, dataUrl) {
+  if (!myFontDirectoryHandle) return false;
+  try {
+    const res = await fetch(dataUrl);
+    const blob = await res.blob();
+    const fileHandle = await myFontDirectoryHandle.getFileHandle(`${fileName}.png`, { create: true });
+    const writable = await fileHandle.createWritable();
+    await writable.write(blob);
+    await writable.close();
+    return true;
+  } catch (err) {
+    console.warn('Direct file write failed:', err);
+    return false;
+  }
+}
+
+function handleFontPackFile(file) {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const data = JSON.parse(e.target.result);
+      let glyphs = {};
+      let fontName = file.name.replace(/\.[^/.]+$/, "");
+
+      if (data && typeof data === 'object') {
+        if (data.format === 'inkforge-font-pack' && data.glyphs) {
+          glyphs = data.glyphs;
+          if (data.fontName) fontName = data.fontName;
+        } else if (data.glyphs) {
+          glyphs = data.glyphs;
+          if (data.fontName) fontName = data.fontName;
+        } else {
+          // Flat map of { filename: dataUrl }
+          glyphs = data;
+        }
+      }
+
+      const glyphCount = Object.keys(glyphs).length;
+      if (glyphCount === 0) {
+        alert('No glyphs found in the imported file.');
+        return;
+      }
+
+      const newId = 'font_' + Date.now();
+      customFontLibrary.fonts[newId] = {
+        id: newId,
+        name: fontName,
+        glyphs: glyphs
+      };
+      saveFontLibrary();
+      switchActiveCustomFont(newId);
+      setStatus('done', `🎉 Successfully imported "${fontName}" (${glyphCount} characters)!`);
+    } catch (err) {
+      alert('Failed to parse font pack JSON: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+}
+
+function openNewFontModal() {
+  const modal = $('new-font-modal');
+  const input = $('new-font-name-input');
+  if (!modal) return;
+  modal.style.display = 'flex';
+  if (input) {
+    input.value = `Custom Style ${Object.keys(customFontLibrary.fonts).length + 1}`;
+    input.focus();
+    input.select();
+  }
+}
+
+function closeNewFontModal() {
+  const modal = $('new-font-modal');
+  if (modal) modal.style.display = 'none';
+}
+
+function initNewFontModal() {
+  const closeBtn = $('close-new-font-modal-btn');
+  const cancelBtn = $('cancel-new-font-btn');
+  const confirmBtn = $('confirm-new-font-btn');
+  const input = $('new-font-name-input');
+
+  [closeBtn, cancelBtn].forEach(btn => {
+    if (btn) btn.addEventListener('click', closeNewFontModal);
+  });
+
+  if (confirmBtn) {
+    confirmBtn.addEventListener('click', () => {
+      const name = (input ? input.value.trim() : '') || `Custom Style ${Object.keys(customFontLibrary.fonts).length + 1}`;
+      createNewCustomFont(name);
+      closeNewFontModal();
+      glyphStudioModal.style.display = 'flex';
+      onSelectedCharChange();
+      setStatus('done', `✨ Created font profile "${name}"! Draw your characters below.`);
+    });
+  }
+
+  if (input) {
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        if (confirmBtn) confirmBtn.click();
+      } else if (e.key === 'Escape') {
+        closeNewFontModal();
+      }
+    });
+  }
+}
 
 const $ = id => document.getElementById(id);
 
@@ -154,7 +448,7 @@ function loadImg(name) {
 }
 
 async function preloadGlyphsForModel(docModel) {
-  if (activeAppearance.fontFamily !== 'custom-png') return;
+  if (!isCustomFont(activeAppearance.fontFamily)) return;
   const needed = new Set();
   for (const para of docModel) {
     if (para.type === 'diagram' || para.type === 'math') continue;
@@ -487,7 +781,7 @@ async function renderPages(docModel, onProgress) {
   const useCreep = activeAppearance.useCreep;
   const pen = activeAppearance.penStyle;
   const inkColor = activeAppearance.inkColor;
-  const isCustomPng = activeAppearance.fontFamily === 'custom-png';
+  const isCustomPng = isCustomFont(activeAppearance.fontFamily);
 
   const baseFontSizePx = Math.round((activeAppearance.fontSize || 16) * 2.8);
   const pngScale = (activeAppearance.fontSize || 16) * 0.026;
@@ -833,7 +1127,7 @@ async function doUpdateLivePreview(docModel) {
   if (!container || !viewport) return;
 
   // Real-time canvas render for custom PNG font or complex math/diagram documents
-  const hasCustomOrMedia = activeAppearance.fontFamily === 'custom-png' || docModel.some(p => p.type === 'diagram' || p.type === 'math');
+  const hasCustomOrMedia = isCustomFont(activeAppearance.fontFamily) || docModel.some(p => p.type === 'diagram' || p.type === 'math');
 
   if (hasCustomOrMedia) {
     try {
@@ -1186,6 +1480,11 @@ function initGlyphStudio() {
       }
     });
   }
+
+  const linkMyFontBtn = $('link-myfont-folder-btn');
+  if (linkMyFontBtn) {
+    linkMyFontBtn.addEventListener('click', linkMyFontFolder);
+  }
 }
 
 function setupDrawStroke() {
@@ -1294,43 +1593,74 @@ function saveDrawnCharacter() {
 
   const dataUrl = cropCanvas.toDataURL('image/png');
   const img = new Image();
-  img.onload = () => {
+  img.onload = async () => {
     customGlyphMap[fileName] = img;
     currentCharStatus.textContent = 'Saved (Custom)';
     currentCharStatus.className = 'glyph-badge badge-present';
     glyphCurrentPreview.innerHTML = `<img src="${dataUrl}" />`;
 
-    // Persist to LocalStorage
+    // Persist into active custom font profile
+    const activeFont = getActiveCustomFont();
+    if (!activeFont.glyphs) activeFont.glyphs = {};
+    activeFont.glyphs[fileName] = dataUrl;
+    saveFontLibrary();
+
+    // Persist to legacy LocalStorage key as well
     try {
       const saved = JSON.parse(localStorage.getItem(USER_GLYPHS_STORAGE_KEY) || '{}');
       saved[fileName] = dataUrl;
       localStorage.setItem(USER_GLYPHS_STORAGE_KEY, JSON.stringify(saved));
     } catch {}
 
-    // Switch to custom PNG mode if not already
-    activeAppearance.fontFamily = 'custom-png';
-    $('handwriting-font').value = 'custom-png';
-    $('custom-glyph-area').style.display = 'inline-flex';
+    // Direct write to disk if user linked their 'myfont/' directory
+    let savedToDisk = false;
+    if (myFontDirectoryHandle) {
+      savedToDisk = await writeGlyphToLinkedFolder(fileName, dataUrl);
+    }
+
+    // Switch to custom font mode if not already
+    const activeFontId = getActiveCustomFontId();
+    activeAppearance.fontFamily = activeFontId === 'default' ? 'custom-png' : `custom:${activeFontId}`;
+    if (fontSelect) fontSelect.value = activeAppearance.fontFamily;
+    if ($('custom-glyph-area')) $('custom-glyph-area').style.display = 'inline-flex';
+    updateCustomFontsDropdown();
     saveSettingsToStorage();
     onEditorInput();
-    setStatus('done', `✅ Saved glyph "${fileName}.png" into custom font!`);
+
+    if (savedToDisk) {
+      setStatus('done', `💾 Saved "${fileName}.png" directly to hard drive ('${myFontDirectoryHandle.name}/') & profile "${activeFont.name}"!`);
+    } else {
+      setStatus('done', `✅ Saved glyph "${fileName}.png" into profile "${activeFont.name}"!`);
+    }
   };
   img.src = dataUrl;
 }
 
 function exportGlyphPack() {
-  const pack = {};
+  const activeFont = getActiveCustomFont();
+  const pack = {
+    format: 'inkforge-font-pack',
+    version: '1.4.0',
+    fontId: activeFont.id,
+    fontName: activeFont.name,
+    exportedAt: new Date().toISOString(),
+    glyphs: {}
+  };
+
   GLYPH_MANIFEST.forEach(g => {
     if (customGlyphMap[g.file]) {
-      pack[g.file] = customGlyphMap[g.file].src;
+      pack.glyphs[g.file] = customGlyphMap[g.file].src;
+    } else if (activeFont.glyphs && activeFont.glyphs[g.file]) {
+      pack.glyphs[g.file] = activeFont.glyphs[g.file];
     } else if (window.DEFAULT_MYFONT_GLYPHS && window.DEFAULT_MYFONT_GLYPHS[g.file]) {
-      pack[g.file] = window.DEFAULT_MYFONT_GLYPHS[g.file];
+      pack.glyphs[g.file] = window.DEFAULT_MYFONT_GLYPHS[g.file];
     }
   });
 
   const blob = new Blob([JSON.stringify(pack, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
-  a.download = 'inkforge-custom-glyphs.json';
+  const safeName = (activeFont.name || 'custom-font').toLowerCase().replace(/[^a-z0-9_-]/g, '_');
+  a.download = `inkforge-${safeName}-glyphs.json`;
   a.href = URL.createObjectURL(blob);
   a.click();
 }
@@ -1491,10 +1821,24 @@ editorSurface.addEventListener('input', onEditorInput);
 
 // ── Customization Inputs ──
 fontSelect.addEventListener('change', () => {
-  activeAppearance.fontFamily = fontSelect.value;
-  glyphUploadArea.style.display = fontSelect.value === 'custom-png' ? 'inline-flex' : 'none';
-  saveSettingsToStorage();
-  onEditorInput();
+  const val = fontSelect.value;
+  if (val === '__new_custom_font__') {
+    openNewFontModal();
+    fontSelect.value = isCustomFont(activeAppearance.fontFamily) ? activeAppearance.fontFamily : 'Caveat';
+    return;
+  }
+
+  if (val === 'custom-png') {
+    switchActiveCustomFont('default');
+  } else if (val.startsWith('custom:')) {
+    const fontId = val.replace('custom:', '');
+    switchActiveCustomFont(fontId);
+  } else {
+    activeAppearance.fontFamily = val;
+    glyphUploadArea.style.display = 'none';
+    saveSettingsToStorage();
+    onEditorInput();
+  }
 });
 
 penSelect.addEventListener('change', () => {
@@ -1600,6 +1944,9 @@ glyphUploadInput.addEventListener('change', (e) => {
   if (!files.length) return;
 
   let loaded = 0;
+  const activeFont = getActiveCustomFont();
+  if (!activeFont.glyphs) activeFont.glyphs = {};
+
   files.forEach(file => {
     const name = file.name.replace(/\.[^/.]+$/, "");
     const reader = new FileReader();
@@ -1607,12 +1954,16 @@ glyphUploadInput.addEventListener('change', (e) => {
       const img = new Image();
       img.onload = () => {
         customGlyphMap[name] = img;
+        activeFont.glyphs[name] = evt.target.result;
         loaded++;
         glyphStatus.textContent = `${loaded} glyphs`;
         glyphClearBtn.style.display = 'inline-block';
         if (loaded === files.length) {
-          activeAppearance.fontFamily = 'custom-png';
-          fontSelect.value = 'custom-png';
+          saveFontLibrary();
+          const activeFontId = getActiveCustomFontId();
+          activeAppearance.fontFamily = activeFontId === 'default' ? 'custom-png' : `custom:${activeFontId}`;
+          if (fontSelect) fontSelect.value = activeAppearance.fontFamily;
+          updateCustomFontsDropdown();
           saveSettingsToStorage();
           onEditorInput();
         }
@@ -1624,14 +1975,46 @@ glyphUploadInput.addEventListener('change', (e) => {
 });
 
 glyphClearBtn.addEventListener('click', () => {
+  const activeFont = getActiveCustomFont();
+  activeFont.glyphs = {};
   customGlyphMap = {};
   glyphStatus.textContent = '';
   glyphClearBtn.style.display = 'none';
+  saveFontLibrary();
   activeAppearance.fontFamily = 'Caveat';
   fontSelect.value = 'Caveat';
   glyphUploadArea.style.display = 'none';
+  updateCustomFontsDropdown();
   saveSettingsToStorage();
   onEditorInput();
+});
+
+// ── Font Pack Import & Drag-and-Drop ──
+const importFontBtn = $('import-font-btn');
+const fontPackImportInput = $('font-pack-import-input');
+if (importFontBtn && fontPackImportInput) {
+  importFontBtn.addEventListener('click', () => fontPackImportInput.click());
+  fontPackImportInput.addEventListener('change', (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (file) {
+      handleFontPackFile(file);
+      fontPackImportInput.value = '';
+    }
+  });
+}
+
+window.addEventListener('dragover', (e) => {
+  e.preventDefault();
+});
+
+window.addEventListener('drop', (e) => {
+  e.preventDefault();
+  if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) {
+    const file = e.dataTransfer.files[0];
+    if (file.name.endsWith('.json') || file.name.endsWith('.inkfont')) {
+      handleFontPackFile(file);
+    }
+  }
 });
 
 // ── Preview Navigation & Refresh ──
@@ -1942,13 +2325,22 @@ function saveAndAdvanceWizard(dir) {
 
     const dataUrl = cropCanvas.toDataURL('image/png');
     const img = new Image();
-    img.onload = () => {
+    img.onload = async () => {
       customGlyphMap[item.file] = img;
+      const activeFont = getActiveCustomFont();
+      if (!activeFont.glyphs) activeFont.glyphs = {};
+      activeFont.glyphs[item.file] = dataUrl;
+      saveFontLibrary();
+
       try {
         const saved = JSON.parse(localStorage.getItem(USER_GLYPHS_STORAGE_KEY) || '{}');
         saved[item.file] = dataUrl;
         localStorage.setItem(USER_GLYPHS_STORAGE_KEY, JSON.stringify(saved));
       } catch {}
+
+      if (myFontDirectoryHandle) {
+        await writeGlyphToLinkedFolder(item.file, dataUrl);
+      }
     };
     img.src = dataUrl;
   }
@@ -2108,9 +2500,11 @@ function initHandwritingWizard() {
   if (finishBtn) {
     finishBtn.addEventListener('click', () => {
       wizardModal.style.display = 'none';
-      activeAppearance.fontFamily = 'custom-png';
-      $('handwriting-font').value = 'custom-png';
-      $('custom-glyph-area').style.display = 'inline-flex';
+      const activeFontId = getActiveCustomFontId();
+      activeAppearance.fontFamily = activeFontId === 'default' ? 'custom-png' : `custom:${activeFontId}`;
+      if (fontSelect) fontSelect.value = activeAppearance.fontFamily;
+      if ($('custom-glyph-area')) $('custom-glyph-area').style.display = 'inline-flex';
+      updateCustomFontsDropdown();
       saveSettingsToStorage();
       onEditorInput();
       setStatus('done', '🎉 Personalized handwriting active! Document rendered.');
@@ -2163,9 +2557,11 @@ resetBtn.addEventListener('click', () => {
 
 // ── Initial Boot ──
 (function init() {
+  loadFontLibrary();
   initGlyphStudio();
   initMathAndDiagrams();
   initHandwritingWizard();
+  initNewFontModal();
 
   const saved = loadSettingsFromStorage();
   if (saved) {
@@ -2173,6 +2569,10 @@ resetBtn.addEventListener('click', () => {
     activeAppearance = { ...DEFAULT_APPEARANCE, ...(saved.appearance || {}) };
 
     if (fontSelect) fontSelect.value = activeAppearance.fontFamily || 'Caveat';
+    if (isCustomFont(activeAppearance.fontFamily)) {
+      const area = $('custom-glyph-area');
+      if (area) area.style.display = 'inline-flex';
+    }
     if (penSelect) penSelect.value = activeAppearance.penStyle || 'gel';
     if (paperStyleSelect) paperStyleSelect.value = activeAppearance.paperStyle || 'ruled';
     if (fontSizeInput) fontSizeInput.value = activeAppearance.fontSize || 16;
@@ -2183,5 +2583,6 @@ resetBtn.addEventListener('click', () => {
     if (creepToggle) creepToggle.checked = activeAppearance.useCreep !== false;
   }
 
+  updateCustomFontsDropdown();
   setTimeout(onEditorInput, 80);
 })();

@@ -124,15 +124,20 @@
       <div class="cp-group">
         <label for="handwriting-font">Font Style</label>
         <select id="handwriting-font" class="cp-select">
-          <option value="Caveat" selected>Caveat (Casual Cursive)</option>
-          <option value="Kalam">Kalam (Neat Ballpoint)</option>
-          <option value="Indie Flower">Indie Flower (Notebook)</option>
-          <option value="Shadows Into Light">Shadows Into Light (Organic)</option>
-          <option value="Homemade Apple">Homemade Apple (Realist Flow)</option>
-          <option value="Patrick Hand">Patrick Hand (Clean Print)</option>
-          <option value="custom-png">Custom PNGs (myfont/)</option>
+          <optgroup label="Curated Handwriting Styles">
+            <option value="Caveat" selected>Caveat (Casual Cursive)</option>
+            <option value="Kalam">Kalam (Neat Ballpoint)</option>
+            <option value="Indie Flower">Indie Flower (Notebook)</option>
+            <option value="Shadows Into Light">Shadows Into Light (Organic)</option>
+            <option value="Homemade Apple">Homemade Apple (Realist Flow)</option>
+            <option value="Patrick Hand">Patrick Hand (Clean Print)</option>
+          </optgroup>
+          <optgroup label="Personal Custom Fonts" id="custom-fonts-optgroup">
+            <option value="custom-png">Default Scanned (myfont/)</option>
+            <option value="__new_custom_font__">➕ Create New Custom Font...</option>
+          </optgroup>
         </select>
-        <div id="custom-glyph-area" style="display:none; align-items: center; gap: 6px;">
+        <div id="custom-glyph-area" style="display:none; align-items: center; gap: 6px; margin-top: 4px;">
           <input type="file" id="glyph-upload-input" accept="image/png" multiple style="display:none" />
           <button class="cp-btn" id="glyph-upload-btn">📁 Upload PNGs</button>
           <button class="cp-btn cp-btn-danger" id="glyph-clear-btn" style="display:none">✕</button>
