@@ -507,6 +507,30 @@
     </div>
   </div>
 
+  <!-- Create New Custom Font Modal -->
+  <div class="modal-backdrop" id="new-font-modal" style="display:none;">
+    <div class="modal-box new-font-modal-box">
+      <div class="modal-header">
+        <div class="modal-title">
+          <span class="modal-icon">➕</span>
+          <div>
+            <h3>Create New Custom Font Profile</h3>
+            <p>Name your new handwriting style &mdash; keeps all your fonts separate</p>
+          </div>
+        </div>
+        <button class="modal-close-btn" id="close-new-font-modal-btn">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 20px;">
+        <label for="new-font-name-input">Font Name:</label>
+        <input type="text" id="new-font-name-input" class="font-name-input" placeholder="e.g. My Cursive, Exam Print, Dad's Handwriting" maxlength="32" />
+        <div class="modal-footer-actions">
+          <button class="act-btn act-dl" id="cancel-new-font-btn">Cancel</button>
+          <button class="act-btn act-generate" id="confirm-new-font-btn">Create Font &amp; Start Drawing</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Footer -->
   <footer class="footer">
     <p>InkForge &mdash; Authentic Text to Handwriting Studio. Crafted with vanilla JavaScript &amp; HTML5 Canvas.</p>

@@ -928,3 +928,17 @@ input[type="color"]::-webkit-color-swatch { border: none; border-radius: 3px; }
   background: linear-gradient(135deg, #059669, #047857);
 }
 
+
+
+/* New Font Modal */
+.new-font-modal-box {
+  max-width: 440px; width: 90%;
+}
+.font-name-input {
+  width: 100%; padding: 10px 14px; background: var(--surface2);
+  border: 1px solid var(--border); border-radius: var(--radius-xs);
+  color: var(--text); font-size: 0.95rem; margin-top: 6px;
+}
+.font-name-input:focus {
+  outline: none; border-color: var(--accent);
+}
