@@ -151,6 +151,10 @@ You can digitize your own personal handwriting using the `myfont/` directory or 
   - Interactive coverage table with 1-click "Draw in Studio" buttons and character deep-linking.
   - Ghost stencil guidelines for easy tracing and keyboard shortcut acceleration.
   - Custom font pack (.inkfont JSON) export, import, and instant document auto-healing.
+- [x] **Milestone 4.5: Multi-Font Profile Library & Direct Disk Saving (v1.4.0)**
+  - Multi-Font Profile Architecture: create, name, and switch between separate personal handwriting styles (e.g. Cursive, Exam Print, Sketch Hand).
+  - Direct Disk Writing via HTML5 File System Access API: link local `myfont/` folder once to save characters straight to disk without dragging from Downloads.
+  - Cross-Origin Font Pack Importer & Global Drag-and-Drop: 1-click font import and drop `.json` / `.inkfont` packs directly onto GitHub Pages.
 - [ ] **Milestone 5: Single-Sheet Photo Grid Scanner**
   - Built-in photo scanner: upload a single sheet containing a character grid to auto-slice and generate custom PNG fonts automatically.
 
