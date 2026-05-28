@@ -358,11 +358,13 @@
           </div>
           <div class="glyph-actions-stack">
             <button class="act-btn act-generate" id="save-drawn-glyph-btn" title="Save character to browser storage & notebook session">💾 Save Character</button>
+            <button class="act-btn act-folder" id="link-myfont-folder-btn" title="Link your computer's local 'myfont/' folder to auto-save directly to disk">📁 Link 'myfont' Folder</button>
+            <div id="linked-folder-status" class="folder-linked-badge" style="display:none;">✓ Auto-saving to disk</div>
             <button class="act-btn act-dl" id="download-drawn-png-btn" title="Download this character as a transparent PNG file for myfont/">⬇ Download .PNG</button>
             <button class="act-btn act-dl" id="export-glyph-pack-btn" title="Download all your custom characters as a JSON pack">📦 Export Font Pack</button>
           </div>
           <div class="glyph-storage-hint" style="margin-top: 10px; font-size: 0.75rem; color: var(--text-dim); line-height: 1.4;">
-            💾 <b>Where it saves:</b> Stored in browser <code>LocalStorage</code> and active notebook memory. Persists across page reloads. Click <b>⬇ Download .PNG</b> to save image files to your computer.
+            💾 <b>Direct Disk Saving:</b> Link your <code>myfont/</code> folder once with <b>📁 Link 'myfont' Folder</b> to write PNGs straight to your hard drive without going to Downloads!
           </div>
         </div>
 
