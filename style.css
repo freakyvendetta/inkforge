@@ -402,9 +402,31 @@ input[type="color"]::-webkit-color-swatch { border: none; border-radius: 3px; }
 .editor-surface h1 { font-size: 1.8rem; font-weight: 700; margin-bottom: 0.5em; color: var(--text); }
 .editor-surface h2 { font-size: 1.5rem; font-weight: 600; margin-bottom: 0.4em; color: var(--text); }
 .editor-surface h3 { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.35em; color: var(--text); }
-.editor-surface ul,
-.editor-surface ol { margin-left: 1.5em; margin-bottom: 0.4em; }
-.editor-surface li { margin-bottom: 0.15em; }
+
+/* Inline word/phrase headings */
+.editor-surface .ink-heading { display: inline; color: var(--text); }
+.editor-surface .ink-h1 { font-size: 1.6em; font-weight: 700; color: #fff; text-decoration: underline 2px rgba(108,99,255,0.4); text-underline-offset: 3px; }
+.editor-surface .ink-h2 { font-size: 1.35em; font-weight: 600; color: var(--text); }
+.editor-surface .ink-h3 { font-size: 1.18em; font-weight: 600; color: var(--text); }
+
+/* Lists: ensure clear padding, visible numbers and bullets */
+.editor-surface ul {
+  list-style-type: disc !important;
+  padding-left: 2.2rem !important;
+  margin-left: 0 !important;
+  margin-bottom: 0.45em !important;
+}
+.editor-surface ol {
+  list-style-type: decimal !important;
+  padding-left: 2.2rem !important;
+  margin-left: 0 !important;
+  margin-bottom: 0.45em !important;
+}
+.editor-surface li {
+  margin-bottom: 0.25em !important;
+  display: list-item !important;
+  padding-left: 0.25rem !important;
+}
 .editor-surface b, .editor-surface strong { font-weight: 700; }
 .editor-surface i, .editor-surface em { font-style: italic; }
 .editor-surface u { text-decoration: underline; }

@@ -77,31 +77,31 @@
     <!-- Formatting Toolbar -->
     <div class="formatting-toolbar" id="formatting-toolbar">
       <div class="tb-group">
-        <button class="tb-btn" data-cmd="bold" title="Bold (Ctrl+B)"><b>B</b></button>
-        <button class="tb-btn" data-cmd="italic" title="Italic (Ctrl+I)"><i>I</i></button>
-        <button class="tb-btn" data-cmd="underline" title="Underline (Ctrl+U)"><u>U</u></button>
-        <button class="tb-btn" data-cmd="strikeThrough" title="Scratch Out / Strikethrough"><s>S</s></button>
+        <button class="tb-btn" id="tb-bold" data-cmd="bold" title="Bold (Ctrl+B)"><b>B</b></button>
+        <button class="tb-btn" id="tb-italic" data-cmd="italic" title="Italic (Ctrl+I)"><i>I</i></button>
+        <button class="tb-btn" id="tb-underline" data-cmd="underline" title="Underline (Ctrl+U)"><u>U</u></button>
+        <button class="tb-btn" id="tb-strike" data-cmd="strikeThrough" title="Scratch Out / Strikethrough"><s>S</s></button>
       </div>
       <div class="tb-sep"></div>
       <div class="tb-group">
-        <button class="tb-btn tb-h" data-cmd="h1" title="Heading 1">H1</button>
-        <button class="tb-btn tb-h" data-cmd="h2" title="Heading 2">H2</button>
-        <button class="tb-btn tb-h" data-cmd="h3" title="Heading 3">H3</button>
+        <button class="tb-btn tb-h" id="tb-h1" data-cmd="h1" title="Heading 1">H1</button>
+        <button class="tb-btn tb-h" id="tb-h2" data-cmd="h2" title="Heading 2">H2</button>
+        <button class="tb-btn tb-h" id="tb-h3" data-cmd="h3" title="Heading 3">H3</button>
       </div>
       <div class="tb-sep"></div>
       <div class="tb-group">
-        <button class="tb-btn" data-cmd="insertUnorderedList" title="Bullet List">• List</button>
-        <button class="tb-btn" data-cmd="insertOrderedList" title="Numbered List">1. List</button>
+        <button class="tb-btn" id="tb-ul" data-cmd="insertUnorderedList" title="Bullet List">• List</button>
+        <button class="tb-btn" id="tb-ol" data-cmd="insertOrderedList" title="Numbered List">1. List</button>
       </div>
       <div class="tb-sep"></div>
       <div class="tb-group">
-        <button class="tb-btn" data-cmd="justifyLeft" title="Align Left">
+        <button class="tb-btn" id="tb-align-left" data-cmd="justifyLeft" title="Align Left">
           <span class="tb-align align-l"><i></i><i></i><i></i></span>
         </button>
-        <button class="tb-btn" data-cmd="justifyCenter" title="Center">
+        <button class="tb-btn" id="tb-align-center" data-cmd="justifyCenter" title="Center">
           <span class="tb-align align-c"><i></i><i></i><i></i></span>
         </button>
-        <button class="tb-btn" data-cmd="justifyRight" title="Align Right">
+        <button class="tb-btn" id="tb-align-right" data-cmd="justifyRight" title="Align Right">
           <span class="tb-align align-r"><i></i><i></i><i></i></span>
         </button>
       </div>
