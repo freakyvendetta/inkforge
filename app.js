@@ -621,7 +621,7 @@ function drawTintedGlyph(ctx, img, x, y, scale, color, isBold, isItalic, offscre
 
   ctx.save();
   if (isItalic) {
-    ctx.transform(1, 0, -0.18, 1, x + 0.18 * y, y);
+    ctx.transform(1, 0, -0.15, 1, x + 0.15 * h, y);
     if (isBold) {
       const bOffset = Math.max(1, Math.round(2 * scale));
       const stamps = [[0,0], [bOffset,0], [0,bOffset], [bOffset,bOffset], [-1,0]];
@@ -1242,7 +1242,7 @@ async function doUpdateLivePreview(docModel) {
     para.runs.forEach(run => {
       let t = run.text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
       let styles = '';
-      if (run.italic) styles += 'font-style:italic; transform:skewX(-8deg); display:inline-block;';
+      if (run.italic) styles += 'font-style:italic;';
       if (run.bold) styles += 'font-weight:700; text-shadow: 1px 0px 0px currentColor;';
       if (run.underline) styles += 'text-decoration:underline;';
       if (run.strike) styles += 'text-decoration:line-through; color:rgba(239,68,68,0.85);';
